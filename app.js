@@ -31,29 +31,16 @@ function tokenizeWord(w) {
     stress: /^[ˈˌ]/.test(tok),
   })).filter(t => t.ph);
 }
-const VOWELS = new Set(['a', 'ɛ', 'e', 'i', 'ɔ', 'o', 'u', 'ə', 'ɐ', 'ʊ']);
 function wordToXSF(toks, map, opts) {
-  const keys = toks.map(t => (t.ph in map) ? map[t.ph] : '«' + t.ph + '»');
-  const unknown = toks.filter(t => !(t.ph in map)).map(t => t.ph);
-  // posició del + : després de la síl·laba tònica real.
-  //  - si la vocal tònica té consonant a davant (onset): + just després de la vocal.
-  //  - si NO en té: + després de la consonant següent NOMÉS si és CODA (seguida de
-  //    consonant o final de paraula); si la síl·laba és oberta, + després de la vocal.
-  const plusAt = new Set();
-  if (opts.tonicitat) {
-    toks.forEach((t, s) => {
-      if (!t.stress) return;
-      const onsetBefore = s > 0 && !VOWELS.has(toks[s - 1].ph);
-      let p = s;
-      if (!onsetBefore) {
-        const n1 = toks[s + 1], n2 = toks[s + 2];
-        if (n1 && !VOWELS.has(n1.ph) && (!n2 || !VOWELS.has(n2.ph))) p = s + 1; // n1 és coda
-      }
-      plusAt.add(p);
-    });
+  // El + de tonicitat va JUST DESPRÉS de la vocal tònica (tan a l'esquerra com es pot).
+  let out = ''; const unknown = [];
+  for (const t of toks) {
+    let key;
+    if (t.ph in map) key = map[t.ph];
+    else { key = '«' + t.ph + '»'; unknown.push(t.ph); }
+    out += key;
+    if (t.stress && opts.tonicitat) out += (map['ˈ'] || '+');
   }
-  let out = '';
-  for (let i = 0; i < keys.length; i++) { out += keys[i]; if (plusAt.has(i)) out += (map['ˈ'] || '+'); }
   return { out, unknown };
 }
 async function convert(text, opts) {
