@@ -33,6 +33,13 @@ jobs:
       - name: Aplicar el pegat de la nasal dental (XSF)
         run: node patch_dental.js espeak-ng/phsource
 
+      - name: Fix compat/wctype per a emscripten (isw* vs ucd_*)
+        run: |
+          # inclou <wchar.h> ABANS dels #define isw*->ucd_* perquè el musl d'emscripten
+          # no es vegi reescrites les seves declaracions (conflicting types ucd_isalnum)
+          sed -i 's|^#include <ucd/ucd.h>|#include <wchar.h>\n#include <ucd/ucd.h>|' espeak-ng/src/include/compat/wctype.h
+          grep -n 'include <wchar.h>' espeak-ng/src/include/compat/wctype.h
+
       - name: Build natiu (genera espeak-ng-data)
         working-directory: espeak-ng
         run: |
