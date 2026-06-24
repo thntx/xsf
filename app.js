@@ -31,15 +31,23 @@ function tokenizeWord(w) {
     stress: /^[ˈˌ]/.test(tok),
   })).filter(t => t.ph);
 }
+const VOWELS = new Set(['a', 'ɛ', 'e', 'i', 'ɔ', 'o', 'u', 'ə', 'ɐ', 'ʊ']);
 function wordToXSF(toks, map, opts) {
-  let out = ''; const unknown = [];
-  for (const t of toks) {
-    let key;
-    if (t.ph in map) key = map[t.ph];
-    else { key = '«' + t.ph + '»'; unknown.push(t.ph); }
-    out += key;
-    if (t.stress && opts.tonicitat) out += (map['ˈ'] || '+');
+  const keys = toks.map(t => (t.ph in map) ? map[t.ph] : '«' + t.ph + '»');
+  const unknown = toks.filter(t => !(t.ph in map)).map(t => t.ph);
+  // posició del + : just després de la síl·laba tònica. Si la vocal tònica NO té
+  // consonant a davant, el + va després de la consonant següent (si en té una).
+  const plusAt = new Set();
+  if (opts.tonicitat) {
+    toks.forEach((t, s) => {
+      if (!t.stress) return;
+      const onsetBefore = s > 0 && !VOWELS.has(toks[s - 1].ph);
+      const p = (!onsetBefore && s + 1 < toks.length && !VOWELS.has(toks[s + 1].ph)) ? s + 1 : s;
+      plusAt.add(p);
+    });
   }
+  let out = '';
+  for (let i = 0; i < keys.length; i++) { out += keys[i]; if (plusAt.has(i)) out += (map['ˈ'] || '+'); }
   return { out, unknown };
 }
 async function convert(text, opts) {

@@ -18,29 +18,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # El motor wasm només depèn de patch_dental.js (i de la lògica de build, "v2").
+      # Si no canvia, es reutilitza de la cache -> els canvis a app.js/mapping/index són ràpids.
+      - name: Cache del motor wasm
+        id: engine
+        uses: actions/cache@v4
+        with:
+          path: engine
+          key: engine-v2-${{ hashFiles('patch_dental.js') }}
+
       - uses: actions/setup-node@v4
+        if: steps.engine.outputs.cache-hit != 'true'
         with: { node-version: '20' }
 
       - name: Dependències de build
+        if: steps.engine.outputs.cache-hit != 'true'
         run: sudo apt-get update && sudo apt-get install -y autoconf automake libtool pkg-config make gcc ronn
 
       - name: Emscripten (emsdk)
+        if: steps.engine.outputs.cache-hit != 'true'
         uses: mymindstorm/setup-emsdk@v14
 
       - name: Clonar el fork de l'AINA
+        if: steps.engine.outputs.cache-hit != 'true'
         run: git clone --depth 1 --single-branch --branch new_catalan_accents https://github.com/projecte-aina/espeak-ng espeak-ng
 
       - name: Aplicar el pegat de la nasal dental (XSF)
+        if: steps.engine.outputs.cache-hit != 'true'
         run: node patch_dental.js espeak-ng/phsource
 
       - name: Fix compat/wctype per a emscripten (isw* vs ucd_*)
-        run: |
-          # inclou <wchar.h> ABANS dels #define isw*->ucd_* perquè el musl d'emscripten
-          # no es vegi reescrites les seves declaracions (conflicting types ucd_isalnum)
-          sed -i 's|^#include <ucd/ucd.h>|#include <wchar.h>\n#include <ucd/ucd.h>|' espeak-ng/src/include/compat/wctype.h
-          grep -n 'include <wchar.h>' espeak-ng/src/include/compat/wctype.h
+        if: steps.engine.outputs.cache-hit != 'true'
+        run: sed -i 's|^#include <ucd/ucd.h>|#include <wchar.h>\n#include <ucd/ucd.h>|' espeak-ng/src/include/compat/wctype.h
 
-      - name: Build natiu (genera espeak-ng-data)
+      - name: Build natiu (genera espeak-ng-data amb el pegat)
+        if: steps.engine.outputs.cache-hit != 'true'
         working-directory: espeak-ng
         run: |
           set -e
@@ -48,19 +60,15 @@ jobs:
           ./configure --without-async --without-mbrola --without-sonic --without-pcaudiolib --without-klatt --without-speechplayer --disable-maintainer-mode
           make -j$(nproc)
 
-      - name: Build WebAssembly
+      - name: Build WebAssembly (enllaç estàtic)
+        if: steps.engine.outputs.cache-hit != 'true'
         working-directory: espeak-ng
         run: |
           set -e
-          # desa les dades compilades pel build natiu (amb el pegat de la nasal dental)
-          # abans que "make clean" les esborri
           cp -r espeak-ng-data /tmp/eng-data
-          # reconfigura per a emscripten amb ENLLAÇ ESTÀTIC (sense .so: si no, el wasm
-          # intenta carregar libespeak-ng.so dinàmicament en temps d'execució)
           emconfigure ./configure --without-async --without-mbrola --without-sonic --without-pcaudiolib --without-klatt --without-speechplayer --disable-maintainer-mode --enable-static --disable-shared
           emmake make clean
           emmake make src/espeak-ng
-          echo "--- artefactes ---"; ls -la src/.libs/ 2>/dev/null || true; ls -la src/*.o 2>/dev/null || true
           MAIN=$(ls src/espeak-ng.o src/espeak_ng-espeak-ng.o src/.libs/espeak-ng.o src/.libs/espeak_ng-espeak-ng.o 2>/dev/null | head -1)
           echo "objecte main: $MAIN"
           emcc -O2 \
@@ -69,14 +77,17 @@ jobs:
             -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=64MB \
             "$MAIN" src/.libs/libespeak-ng.a -o espeak-ng.js \
             --embed-file /tmp/eng-data@/usr/local/share/espeak-ng-data/
-          ls -la espeak-ng.js espeak-ng.wasm
+
+      - name: Desa el motor a engine/
+        if: steps.engine.outputs.cache-hit != 'true'
+        run: mkdir -p engine && cp espeak-ng/espeak-ng.js espeak-ng/espeak-ng.wasm engine/
 
       - name: Muntar el lloc
         run: |
           set -e
           mkdir -p _site
           cp index.html app.js mapping.txt XSF.woff2 .nojekyll _site/
-          cp espeak-ng/espeak-ng.js espeak-ng/espeak-ng.wasm _site/
+          cp engine/espeak-ng.js engine/espeak-ng.wasm _site/
           ls -la _site
 
       - uses: actions/upload-pages-artifact@v3
