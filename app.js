@@ -42,6 +42,20 @@ async function convert(text, opts) {
   });
   // i, j consecutius s'enganxen (formen lligatura) si són a la mateixa paraula, o sempre si no hi ha espais
   const adj = (i, j) => i >= 0 && j < toks.length && (toks[i].w === toks[j].w || !opts.espais);
+  // GEMINACIÓ dins de grup consonàntic: si dues consonants IGUALS van juntes i una de les
+  // dues queda ENTRE dues consonants (cluster de 3), la consonant intercalada se substitueix:
+  //   ':' si és la SEGONA del parell · ';' si és la PRIMERA.   ttr -> t:r · rtt -> r;t
+  if (opts.geminacio !== false) {
+    const cons = i => i >= 0 && i < toks.length && !toks[i].vowel;
+    const repl = [];
+    for (let i = 0; i + 1 < toks.length; i++) {
+      if (cons(i) && cons(i + 1) && toks[i].key === toks[i + 1].key && adj(i, i + 1)) {
+        if (cons(i + 2) && adj(i + 1, i + 2)) repl.push([i + 1, ':']);   // segona, enmig -> :
+        if (cons(i - 1) && adj(i - 1, i)) repl.push([i, ';']);          // primera, enmig -> ;
+      }
+    }
+    repl.forEach(([i, ch]) => { toks[i].key = ch; });
+  }
   // El + va DESPRÉS DE LA LLIGATURA de la vocal tònica (cal >=1 vocal i >=1 consonant):
   //  - vocal amb consonant enganxada al davant -> lligatura CV -> + just després de la vocal
   //  - si no, i la consonant de després és CODA (no s'enganxa a la vocal següent) -> + després d'ella
