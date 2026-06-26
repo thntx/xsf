@@ -3,24 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Transcriptor català → XSF</title>
+<title>Transcriptor</title>
 <style>
   @font-face { font-family: 'XSF'; src: url('XSF.woff2') format('woff2'); font-display: swap; }
   :root { --bg:#14151a; --fg:#e8e8ec; --mut:#8a8a93; --acc:#6ad; --pan:#1d1f26; --bd:#333; }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--fg); font-family:system-ui,sans-serif; line-height:1.5; }
-  .wrap { max-width: 920px; margin: 0 auto; padding: 24px 16px 64px; }
-  h1 { font-size: 1.3rem; font-weight: 600; margin-bottom: 2px; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 28px 16px 64px; }
+  h1 { font-size: 2.6rem; font-weight: 800; letter-spacing:-.02em; margin: 0 0 14px; }
   .mut { color: var(--mut); font-size: .85rem; }
   textarea { width:100%; background:var(--pan); color:var(--fg); border:1px solid var(--bd); border-radius:10px; padding:12px; font-size:1rem; resize:vertical; }
-  #input { min-height:96px; }
+  #input { min-height:92px; }
   .row { display:flex; flex-wrap:wrap; gap:12px 20px; align-items:center; margin:12px 0; }
   label { font-size:.9rem; }
   select, input[type=number], input[type=color] { background:var(--pan); color:var(--fg); border:1px solid var(--bd); border-radius:7px; padding:5px 8px; }
   button { background:var(--acc); color:#06121c; border:0; border-radius:8px; padding:9px 16px; font-weight:600; cursor:pointer; }
   button.sec { background:#2a2d36; color:var(--fg); }
+  #mode { font-size:1rem; padding:8px 10px; }
   .panel { background:var(--pan); border:1px solid var(--bd); border-radius:12px; padding:18px; margin-top:16px; }
   #out { font-family:'XSF'; font-size:72px; line-height:1.35; word-break:break-word; min-height:90px; }
+  #out.afi { font-family:ui-monospace,monospace; font-size:1.6rem; line-height:1.5; }
   #debug { white-space:pre-wrap; color:var(--mut); font-family:ui-monospace,monospace; font-size:.8rem; margin-top:12px; }
   #status { color:var(--acc); font-size:.85rem; min-height:1.2em; }
   details { background:var(--pan); border:1px solid var(--bd); border-radius:12px; margin-top:16px; }
@@ -33,22 +35,34 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Transcriptor català → XSF</h1>
-  <p class="mut">Escriu en català i obtén la transcripció en l'alfabet fonètic XSF. Motor: espeak-ng (fork de l'AINA) compilat a WebAssembly, tot al navegador.</p>
-
-  <textarea id="input" placeholder="Escriu aquí el text en català…  (Ctrl+Enter per transcriure)">una àmfora amb vint metges; el gat menja peix</textarea>
+  <h1>Transcriptor</h1>
 
   <div class="row">
-    <label>Dialecte:
-      <select id="dialecte">
-        <option value="ca">Central</option>
-        <option value="ca-va">Valencià</option>
-        <option value="ca-nw">Nord-occidental</option>
-        <option value="ca-ba">Balear</option>
-        <option value="ca-al">Alguerès</option>
-        <option value="ca-ro">Rossellonès</option>
+    <label>Mode:
+      <select id="mode">
+        <option value="cat-xsf">Català → XSF</option>
+        <option value="cat-afi">Català → AFI</option>
+        <option value="afi-xsf">AFI → XSF</option>
+        <option value="xsf-afi">XSF → AFI</option>
       </select>
     </label>
+  </div>
+
+  <textarea id="input" placeholder="text en català…  (Ctrl+Enter)">una àmfora amb vint metges; el gat menja peix</textarea>
+
+  <div class="row">
+    <span id="catonly">
+      <label>Dialecte:
+        <select id="dialecte">
+          <option value="ca">Central</option>
+          <option value="ca-va">Valencià</option>
+          <option value="ca-nw">Nord-occidental</option>
+          <option value="ca-ba">Balear</option>
+          <option value="ca-al">Alguerès</option>
+          <option value="ca-ro">Rossellonès</option>
+        </select>
+      </label>
+    </span>
     <label>Sistema sil·làbic:
       <select id="sistema">
         <option value="kib">kib (minúscules)</option>
@@ -69,6 +83,8 @@
     <label><input type="checkbox" id="tonicitat" checked> tonicitat (+)</label>
     <label><input type="checkbox" id="espais" checked> separar paraules amb espais</label>
     <label><input type="checkbox" id="geminacio" checked> geminació (: ;)</label>
+    <label><input type="checkbox" id="uphangv"> vocals penjades en integral</label>
+    <label><input type="checkbox" id="uphangc"> consonants penjades en integral</label>
   </div>
 
   <details open>
@@ -78,10 +94,9 @@
         <label><input type="checkbox" id="elisio" checked> elisió de la vocal neutra (enllaç de paraules)</label>
         <label><input type="checkbox" id="diftongs"> diftongs / sinalefes</label>
       </div>
-      <p class="mut" style="margin:4px 0 12px">Elisió: a la frontera entre paraules, si hi ha vocal+vocal i una és neutra (ə), s'elideix la neutra (dues neutres es fusionen). Diftongs: en els parells de la llista, una vocal es torna semivocal (e→6, o→2, i→y, u→w); si portava la tònica, el + passa a la vocal del costat.</p>
       <div class="grid">
         <div class="fld">
-          <label>Parells de vocals → diftong (un per línia, p. ex. «e ə»)</label>
+          <label>Parells de vocals → diftong (un per línia, en grafia XSF, p. ex. «e x»)</label>
           <textarea id="pairs"></textarea>
         </div>
         <div class="fld">
@@ -89,7 +104,7 @@
           <textarea id="except"></textarea>
         </div>
         <div class="fld">
-          <label>Substitucions de paraula → AFI (p. ex. «però  pɾɔ»)</label>
+          <label>Substitucions de paraula → XSF (p. ex. «però  prò+»)</label>
           <textarea id="subs"></textarea>
         </div>
       </div>

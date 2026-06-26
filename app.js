@@ -1,7 +1,7 @@
 import ESpeakNg from './espeak-ng.js';
 
 // ---- mapeig fonema IPA -> grafia XSF (mapping.txt) ----
-let MAP = null;
+let MAP = null, RMAP = null, GRAPHS = null, IPAKEYS = null;
 async function loadMap() {
   if (MAP) return MAP;
   const txt = await (await fetch('mapping.txt')).text();
@@ -13,6 +13,13 @@ async function loadMap() {
     let v = line.slice(i + 2); const h = v.indexOf('#'); if (h >= 0) v = v.slice(0, h);
     if (ipa) MAP[ipa] = v.trim();
   }
+  // mapa INVERS grafia XSF -> IPA (mínima i integral; canònic per a les ambigües) + glides
+  RMAP = {};
+  const addR = (g, ipa) => { if (g && !(g in RMAP)) RMAP[g] = ipa; };
+  for (const [ipa, g] of Object.entries(MAP)) { addR(g, ipa); addR(g.length === 1 ? integralOf(g) : g.toUpperCase(), ipa); }
+  Object.assign(RMAP, { '1': 'ʃ', 'j': 'ʒ', 't1': 'tʃ', '3j': 'dʒ', '6': 'e̯', '2': 'o̯', '&': 'e̯', '"': 'o̯' });
+  GRAPHS = [...new Set([...Object.keys(RMAP), '6', '2'])].filter(Boolean).sort((a, b) => b.length - a.length);
+  IPAKEYS = Object.keys(MAP).sort((a, b) => b.length - a.length);
   return MAP;
 }
 
@@ -24,78 +31,84 @@ async function toIPA(text, voice) {
 
 // ---- fonètica ----
 const VOWELS = new Set(['a', 'ɛ', 'e', 'i', 'ɔ', 'o', 'u', 'ə', 'ɐ', 'ʊ']);
-const NEUTRAL = new Set(['ə', 'ɐ']);                       // vocal neutra
-const GLIDE = { i: 'y', u: 'w', e: '6', 'ɛ': '6', o: '2', 'ɔ': '2', 'ʊ': 'w' }; // grafia de la semivocal
-const SON = { a: 5, 'ɛ': 4, e: 4, 'ɔ': 4, o: 4, 'ə': 3, 'ɐ': 3, i: 2, u: 2, 'ʊ': 2 }; // sonoritat
+const NEUTRAL = new Set(['ə', 'ɐ']);
+const GLIDE = { i: 'y', u: 'w', e: '6', 'ɛ': '6', o: '2', 'ɔ': '2', 'ʊ': 'w' };
+const SON = { a: 5, 'ɛ': 4, e: 4, 'ɔ': 4, o: 4, 'ə': 3, 'ɐ': 3, i: 2, u: 2, 'ʊ': 2 };
+const QACC = { e: '́', o: '́', 'ɛ': '̀', 'ɔ': '̀' }; // accent de qualitat (agut/greu) a transferir al nucli quan e/o glida
 const STRESS_RE = /^[ˈˌ]/;
-const DIAC = /[ːʰ‿͡‍]/g;                                   // diacrítics a treure (conserva n̪ dental U+032A)
-const cls = v => ({ 'ɛ': 'e', 'ɔ': 'o', 'ɐ': 'ə', 'ʊ': 'u' }[v] || v); // classe vocàlica simplificada
-// integral d'una grafia (per al sistema ktb): dígits/símbols via NUMROW_SHIFT, lletres en MAJ
+const DIAC = /[ːʰ‿͡‍]/g;
+const cls = v => ({ 'ɛ': 'e', 'ɔ': 'o', 'ɐ': 'ə', 'ʊ': 'u' }[v] || v);
+// classe vocàlica acceptant tant AFI com grafia XSF (per a la llista de parells)
+const VCLASS = { a: 'a', 'à': 'a', e: 'e', 'è': 'e', 'é': 'e', 'ɛ': 'e', i: 'i', 'í': 'i', o: 'o', 'ò': 'o', 'ó': 'o', 'ɔ': 'o', u: 'u', 'ú': 'u', x: 'ə', 'ə': 'ə', 'ɐ': 'ə' };
+const vclass = t => VCLASS[t] || cls(t);
 const NUMROW_SHIFT = { 'º': 'ª', '1': '!', '2': '"', '3': '·', '4': '$', '5': '%', '6': '&', '7': '/', '8': '(', '9': ')', '0': '=', "'": '?', '¡': '¿' };
 const integralOf = c => NUMROW_SHIFT[c] || c.toUpperCase();
 
-// ---- conversió ----
-async function convert(text, opts) {
-  const map = await loadMap();
-  // Insereix '|' entre paraules: bloqueja l'elisió de vocal d'espeak (la controlem nosaltres),
-  // PERÒ conserva assimilacions i el dental. Així l'elisió/diftong (i les excepcions) són nostres.
-  const piped = text.trim().split(/\s+/).join('|');
-  let ipa = await toIPA(piped, opts.dialecte || 'ca');
-
-  // SUBSTITUCIONS de paraula (p.ex. però -> pɾɔ): alineació per posició si els recomptes coincideixen
-  if (opts.subs && opts.subs.size) {
-    const ipaW = ipa.split(/\s+/).filter(Boolean);
-    const srcW = text.toLowerCase().split(/\s+/).map(w => w.replace(/[^\p{L}·]/gu, '')).filter(Boolean);
-    if (ipaW.length === srcW.length) {
-      for (let i = 0; i < srcW.length; i++) if (opts.subs.has(srcW[i])) ipaW[i] = opts.subs.get(srcW[i]);
-      ipa = ipaW.join(' ');
+// ---- segmentadors ----
+// IPA (sense _) -> paraules de fonemes [{ph,stress}] (greedy longest-match)
+function ipaToWords(ipaText) {
+  return ipaText.trim().split(/\s+/).filter(Boolean).map(word => {
+    const toks = []; let i = 0;
+    while (i < word.length) {
+      let stress = false;
+      while (word[i] === 'ˈ' || word[i] === 'ˌ') { stress = true; i++; }
+      let m = null;
+      for (const k of IPAKEYS) { if (k && word.startsWith(k, i)) { m = k; break; } }
+      if (m) { toks.push({ ph: m, stress }); i += m.length; }
+      else if (i < word.length) i++;
     }
-  }
-
-  // TOKENS plans (amb índex de paraula i la paraula font, per a excepcions)
-  const ipaWords = ipa.split(/\s+/).filter(Boolean);
-  const srcWords = text.toLowerCase().split(/\s+/).map(w => w.replace(/[^\p{L}·]/gu, '')).filter(Boolean);
-  const aligned = ipaWords.length === srcWords.length;
-  const toks = []; const unknown = new Set();
-  ipaWords.forEach((w, wi) => {
-    w.split('_').filter(Boolean).forEach(tok => {
-      const stress = STRESS_RE.test(tok);
-      const ph = tok.replace(/^[ˈˌ]+/, '').replace(DIAC, '');
-      if (!ph) return;
-      if (!(ph in map)) unknown.add(ph);
-      toks.push({ ph, key: (ph in map) ? map[ph] : '«' + ph + '»', vowel: VOWELS.has(ph), neutral: NEUTRAL.has(ph), stress, w: wi, word: aligned ? srcWords[wi] : '', glide: false, dead: false });
-    });
+    return toks;
   });
+}
+// XSF -> IPA (segmenta grafemes, mapa invers; '+' marca tònica a l'última vocal; espai = paraula).
+// Retorna format espeak: fonemes units per '_', paraules per espai.
+function xsfToIpa(xsf) {
+  const words = []; let cur = []; let lastVowel = -1; let i = 0;
+  const flush = () => { if (cur.length) words.push(cur.join('_')); cur = []; lastVowel = -1; };
+  while (i < xsf.length) {
+    if (xsf[i] === ' ') { flush(); i++; continue; }
+    if (xsf[i] === '+') { if (lastVowel >= 0) cur[lastVowel] = 'ˈ' + cur[lastVowel]; i++; continue; }
+    let g = null;
+    for (const cand of GRAPHS) { if (cand && xsf.startsWith(cand, i)) { g = cand; break; } }
+    if (g) { const ipa = RMAP[g] ?? g; if (VOWELS.has(ipa)) lastVowel = cur.length; cur.push(ipa); i += g.length; }
+    else { cur.push(xsf[i]); i++; }
+  }
+  flush();
+  return words.join(' ');
+}
 
-  // DIFTONGS / SINALEFES (abans de l'elisió): per a parells de vocals adjacents (dins o entre
-  // paraules) de la llista, una vocal es torna semivocal. ə sempre és nucli; si no, glida la de
-  // menys sonoritat. Glides: i->y u->w e/ɛ->6 o/ɔ->2. Si la que glida portava la tònica, el + va al nucli.
-  if (opts.diftongs && opts.pairs && opts.pairs.size) {
+// ---- nucli: processa paraules de fonemes -> {xsf, ipa} ----
+function processWords(words, srcWords, opts) {
+  const toks = []; const unknown = new Set(); const map = MAP;
+  words.forEach((wt, wi) => wt.forEach(({ ph, stress }) => {
+    if (!ph) return;
+    const p = ph.replace(DIAC, '');
+    if (!(p in map)) unknown.add(p);
+    toks.push({ ph: p, key: (p in map) ? map[p] : '«' + p + '»', vowel: VOWELS.has(p), neutral: NEUTRAL.has(p), stress, w: wi, word: srcWords ? (srcWords[wi] || '') : '', glide: false, dead: false });
+  }));
+
+  if (opts.diftongs && opts.pairs.size) {
     for (let i = 0; i + 1 < toks.length; i++) {
       const a = toks[i], b = toks[i + 1];
       if (a.dead || b.dead || !a.vowel || !b.vowel || a.glide || b.glide) continue;
       if (!opts.pairs.has(cls(a.ph) + cls(b.ph))) continue;
-      let gi;                                              // índex del que glida
+      let gi;
       if (a.neutral && !b.neutral) gi = i + 1;
       else if (b.neutral && !a.neutral) gi = i;
-      else if ((SON[a.ph] || 3) <= (SON[b.ph] || 3)) gi = i;   // menor sonoritat glida (empat: el 1r)
+      else if ((SON[a.ph] || 3) <= (SON[b.ph] || 3)) gi = i;
       else gi = i + 1;
-      const g = toks[gi], nuc = toks[gi === i ? i + 1 : i];
-      const gl = GLIDE[g.ph];
-      if (!gl) continue;                                   // a/ə no poden glidar
-      if (g.stress && 'iuʊ'.includes(g.ph)) continue;      // vocal ALTA tònica = nucli (no glida; deixa que l'elisió actuï)
+      const g = toks[gi], nuc = toks[gi === i ? i + 1 : i], gl = GLIDE[g.ph];
+      if (!gl) continue;
+      if (g.stress && 'iuʊ'.includes(g.ph)) continue;
       g.key = gl; g.glide = true; g.vowel = false;
-      if (g.stress) { g.stress = false; nuc.stress = true; } // mou la tònica al nucli
+      if (QACC[g.ph]) nuc.key += QACC[g.ph];               // transfereix l'accent de qualitat (é→6: la x agafa l'agut → x́)
+      if (g.stress) { g.stress = false; nuc.stress = true; }
     }
   }
-
-  // ELISIÓ DE VOCAL NEUTRA en l'enllaç de paraules (esadir): a la frontera, si hi ha vocal+vocal
-  // i alguna és neutra, s'elimina la neutra (2.1/2.2); dues neutres es fusionen (2.3).
   if (opts.elisio) {
     for (let i = 0; i + 1 < toks.length; i++) {
       const a = toks[i], b = toks[i + 1];
-      if (a.dead || b.dead || a.w === b.w) continue;       // només enllaç entre paraules diferents
-      if (!a.vowel || !b.vowel) continue;
+      if (a.dead || b.dead || a.w === b.w || !a.vowel || !b.vowel) continue;
       if (opts.except.has(a.word) || opts.except.has(b.word)) continue;
       if (a.neutral && b.neutral) { if (b.stress) a.dead = true; else b.dead = true; }
       else if (a.neutral) a.dead = true;
@@ -104,40 +117,37 @@ async function convert(text, opts) {
   }
 
   const live = toks.filter(t => !t.dead);
-
-  // AFI net per mostrar (sense _; glides marcats amb ̯; espai entre paraules)
   let ipaShow = ''; let lastW = -1;
-  live.forEach(t => {
-    if (lastW !== -1 && t.w !== lastW) ipaShow += ' ';
-    lastW = t.w;
-    ipaShow += (t.stress ? 'ˈ' : '') + t.ph + (t.glide ? '̯' : '');
-  });
+  live.forEach(t => { if (lastW !== -1 && t.w !== lastW) ipaShow += ' '; lastW = t.w; ipaShow += (t.stress ? 'ˈ' : '') + t.ph + (t.glide ? '̯' : ''); });
 
-  // adjacència per a lligatura/geminació (mateixa paraula, o sempre si no hi ha espais)
   const adj = (i, j) => i >= 0 && j < live.length && (live[i].w === live[j].w || !opts.espais);
-
-  // GEMINACIÓ en grup consonàntic: consonant intercalada -> ':' (2a) / ';' (1a). ttr->t:r, rtt->r;t
+  // PENJADES: cada vocal s'aparella amb el seu ONSET (consonant abans -> glif CV) o, si no en té,
+  // amb la CODA (consonant després -> glif VC, p.ex. "el"). Tot el que queda sense aparellar PENJA.
+  // (Governa la caixa d'integrals i la geminació; la tònica ja es col·loca a part i és correcta.)
+  for (const t of live) t.comp = false;
+  for (let i = 0; i + 1 < live.length; i++)              // passada 1: CV (onset + vocal)
+    if (!live[i].vowel && live[i + 1].vowel && adj(i, i + 1) && !live[i].comp && !live[i + 1].comp) { live[i].comp = true; live[i + 1].comp = true; }
+  for (let i = 0; i < live.length; i++)                  // passada 2: VC (vocal sense onset + coda)
+    if (live[i].vowel && !live[i].comp && i + 1 < live.length && !live[i + 1].vowel && adj(i, i + 1) && !live[i + 1].comp) { live[i].comp = true; live[i + 1].comp = true; }
+  // GEMINACIÓ: dues consonants iguals adjacents amb almenys UNA penjant -> es marca la PENJADA:
+  // ';' si és la primera (i sempre que totes dues pengin), ':' si només penja la segona.
   if (opts.geminacio) {
-    const cons = i => i >= 0 && i < live.length && !live[i].vowel;
-    const repl = [];
     for (let i = 0; i + 1 < live.length; i++) {
-      if (cons(i) && cons(i + 1) && live[i].key === live[i + 1].key && adj(i, i + 1)) {
-        if (cons(i + 2) && adj(i + 1, i + 2)) repl.push([i + 1, ':']);
-        if (cons(i - 1) && adj(i - 1, i)) repl.push([i, ';']);
-      }
-    }
-    repl.forEach(([i, ch]) => { live[i].key = ch; });
-  }
-
-  // SISTEMA SIL·LÀBIC: ktb = consonant integral (MAJ) · bkk = vocal MAJ · kib = tot minúscula
-  if (opts.sistema === 'ktb' || opts.sistema === 'bkk') {
-    for (const t of live) {
-      if (opts.sistema === 'bkk' && t.vowel) t.key = t.key.toUpperCase();
-      else if (opts.sistema === 'ktb' && !t.vowel && t.key.length === 1 && !':;'.includes(t.key)) t.key = integralOf(t.key);
+      const a = live[i], b = live[i + 1];
+      if (a.vowel || b.vowel || a.key !== b.key || !adj(i, i + 1) || ':;'.includes(a.key) || ':;'.includes(b.key)) continue;
+      if (!a.comp) a.key = ';';
+      else if (!b.comp) b.key = ':';
     }
   }
-
-  // TONICITAT: el + va després de la LLIGATURA de la vocal tònica (>=1 vocal i >=1 consonant)
+  // INTEGRALS: la COMPOSTA puja segons el sistema (ktb=consonant, bkk=vocal); les PENJADES només
+  // pugen si s'activa l'opció corresponent.
+  for (const t of live) {
+    if (':;'.includes(t.key)) continue;
+    const integral = t.vowel
+      ? ((t.comp && opts.sistema === 'bkk') || (!t.comp && opts.upHangVow))
+      : ((t.comp && opts.sistema === 'ktb') || (!t.comp && opts.upHangCons));
+    if (integral) t.key = t.vowel ? t.key.toUpperCase() : (t.key.length === 1 ? integralOf(t.key) : t.key.toUpperCase());
+  }
   const plus = new Set();
   if (opts.tonicitat) {
     live.forEach((t, s) => {
@@ -151,7 +161,6 @@ async function convert(text, opts) {
       plus.add(p);
     });
   }
-
   let out = '';
   live.forEach((t, i) => {
     if (i > 0 && opts.espais && live[i].w !== live[i - 1].w) out += ' ';
@@ -161,34 +170,55 @@ async function convert(text, opts) {
   return { xsf: out, ipa: ipaShow, unknown: [...unknown] };
 }
 
+// ---- modes ----
+async function convert(text, opts) {
+  await loadMap();
+  if (opts.mode === 'xsf-afi') return { afi: xsfToIpa(text).replace(/_/g, ''), unknown: [] };
+
+  let words, srcWords = null;
+  if (opts.mode === 'afi-xsf') {
+    words = ipaToWords(text);
+  } else { // cat-xsf / cat-afi : espeak
+    // SUBSTITUCIONS (en grafia XSF) -> IPA, injectades a l'AFI per posició
+    const subsIpa = new Map();
+    for (const [w, x] of opts.subs) subsIpa.set(w, xsfToIpa(x).split(' ')[0]);
+    const piped = text.trim().split(/\s+/).join('|');
+    let ipa = await toIPA(piped, opts.dialecte || 'ca');
+    const ipaW = ipa.split(/\s+/).filter(Boolean);
+    srcWords = text.toLowerCase().split(/\s+/).map(w => w.replace(/[^\p{L}·]/gu, '')).filter(Boolean);
+    if (ipaW.length === srcWords.length) {
+      for (let i = 0; i < srcWords.length; i++) if (subsIpa.has(srcWords[i])) ipaW[i] = subsIpa.get(srcWords[i]);
+    } else srcWords = null;
+    words = ipaW.map(w => w.split('_').filter(Boolean).map(tok => ({ ph: tok.replace(/^[ˈˌ]+/, ''), stress: STRESS_RE.test(tok) })));
+  }
+  const r = processWords(words, srcWords, opts);
+  return { xsf: r.xsf, afi: r.ipa, unknown: r.unknown };
+}
+
 // ---- opcions editables (textareas) amb persistència ----
 const DEFAULTS = {
-  pairs: 'e ə\no ə\ni o\nə i\nə u',
+  pairs: 'e x\no x\ni o\nx i\nx u',
   except: '',
-  subs: 'però  pɾˈɔ',
+  subs: 'però  prò+',
 };
 function parsePairs(s) {
   const set = new Set();
-  s.split('\n').forEach(l => { const p = l.trim().split(/\s+/); if (p.length >= 2) set.add(cls(p[0]) + cls(p[1])); });
+  s.split('\n').forEach(l => { const p = l.trim().split(/\s+/); if (p.length >= 2) set.add(vclass(p[0]) + vclass(p[1])); });
   return set;
 }
 function parseWords(s) { return new Set(s.split(/[\s,]+/).map(w => w.trim().toLowerCase()).filter(Boolean)); }
 function parseSubs(s) {
   const m = new Map();
-  s.split('\n').forEach(l => {
-    const p = l.trim().split(/\s+/);
-    if (p.length < 2) return;
-    // segmenta l'AFI en fonemes (tònica + base + diacrítics combinats), unint amb _
-    const seg = (p.slice(1).join('').match(/[ˈˌ]*\P{M}\p{M}*/gu) || []).join('_');
-    m.set(p[0].toLowerCase(), seg);
-  });
+  s.split('\n').forEach(l => { const p = l.trim().split(/\s+/); if (p.length >= 2) m.set(p[0].toLowerCase(), p.slice(1).join(' ')); });
   return m;
 }
 
 // ---- UI ----
 const $ = id => document.getElementById(id);
+const OUT_XSF = m => m === 'cat-xsf' || m === 'afi-xsf';   // la sortida és XSF (font XSF); si no, AFI (mono)
 function readOpts() {
   return {
+    mode: $('mode').value,
     dialecte: $('dialecte').value,
     tonicitat: $('tonicitat').checked,
     espais: $('espais').checked,
@@ -196,6 +226,8 @@ function readOpts() {
     sistema: $('sistema').value,
     elisio: $('elisio').checked,
     diftongs: $('diftongs').checked,
+    upHangVow: $('uphangv').checked,
+    upHangCons: $('uphangc').checked,
     pairs: parsePairs($('pairs').value),
     except: parseWords($('except').value),
     subs: parseSubs($('subs').value),
@@ -203,16 +235,27 @@ function readOpts() {
 }
 async function run() {
   const text = $('input').value.trim(); if (!text) return;
+  const opts = readOpts();
   $('status').textContent = 'transcrivint…';
   try {
-    const r = await convert(text, readOpts());
-    $('out').textContent = r.xsf;
-    $('debug').textContent = 'AFI: ' + r.ipa + (r.unknown.length ? '\nsense mapeig: ' + r.unknown.join(' ') : '');
-    $('status').textContent = ''; window._xsf = r.xsf;
+    const r = await convert(text, opts);
+    const xsfOut = OUT_XSF(opts.mode);
+    $('out').classList.toggle('afi', !xsfOut);
+    $('out').textContent = xsfOut ? r.xsf : r.afi;
+    $('debug').textContent = (xsfOut && opts.mode === 'cat-xsf') ? ('AFI: ' + r.afi) : '';
+    if (r.unknown && r.unknown.length) $('debug').textContent += (xsfOut ? '\n' : '') + 'sense mapeig: ' + r.unknown.join(' ');
+    $('status').textContent = ''; window._out = $('out').textContent; window._xsf = xsfOut;
   } catch (e) { $('status').textContent = 'error: ' + e.message; }
 }
+function syncMode() {
+  const m = $('mode').value;
+  const ph = { 'cat-xsf': 'text en català…', 'cat-afi': 'text en català…', 'afi-xsf': 'text en AFI…', 'xsf-afi': 'text en XSF…' };
+  $('input').placeholder = ph[m] + '  (Ctrl+Enter)';
+  $('catonly').style.display = (m === 'cat-xsf' || m === 'cat-afi') ? '' : 'none';
+}
 async function downloadImage() {
-  const xsf = window._xsf; if (!xsf) return;
+  if (!window._xsf) return;                               // només quan la sortida és XSF
+  const xsf = window._out; if (!xsf) return;
   const size = parseInt($('imgsize').value, 10) || 96;
   await document.fonts.load(size + 'px XSF');
   const pad = Math.round(size * 0.4), lines = xsf.split('\n');
@@ -225,8 +268,6 @@ async function downloadImage() {
   lines.forEach((l, i) => ctx.fillText(l, pad, pad + i * lh));
   const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = 'xsf.png'; a.click();
 }
-
-// persistència de les textareas + rerun en canviar opcions
 function initOpts() {
   for (const id of ['pairs', 'except', 'subs']) {
     const saved = localStorage.getItem('xsf_' + id);
@@ -234,9 +275,9 @@ function initOpts() {
     $(id).addEventListener('input', () => { localStorage.setItem('xsf_' + id, $(id).value); });
   }
 }
-['go'].forEach(id => $(id).addEventListener('click', run));
-['dialecte', 'tonicitat', 'espais', 'geminacio', 'sistema', 'elisio', 'diftongs'].forEach(id => $(id).addEventListener('change', run));
+$('go').addEventListener('click', run);
+['mode', 'dialecte', 'tonicitat', 'espais', 'geminacio', 'sistema', 'elisio', 'diftongs', 'uphangv', 'uphangc'].forEach(id => $(id).addEventListener('change', () => { if (id === 'mode') syncMode(); run(); }));
 $('dl').addEventListener('click', downloadImage);
 $('input').addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') run(); });
-initOpts();
+initOpts(); syncMode();
 loadMap().then(() => { $('status').textContent = 'a punt'; });
