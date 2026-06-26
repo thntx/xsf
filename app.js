@@ -54,7 +54,6 @@ function elideMember(a, b) {
   return 'a';
 }
 function applyContact(beh, a, b) {
-  if (beh === 'fusio') { b.dead = true; return; }            // ə+ə -> un sol ə
   if (beh === 'elide') { const m = elideMember(a, b); (m === 'a' ? a : b).dead = true; return; }
   if (beh === 'diftong') {
     const m = glideMember(a, b); if (!m) return;
@@ -65,22 +64,27 @@ function applyContact(beh, a, b) {
     if (g.stress) { g.stress = false; nuc.stress = true; }   // i la tonicitat també
   }
 }
+// X/A = la classe vocàlica "neutra o a" (es tracten com una sola vocal). Mai glida (és nucli).
+const isXA = t => t.neutral || cls(t.ph) === 'a';
+const fuseKey = t => isXA(t) ? 'a' : t.ph;                    // ɛ/e/ɔ/o/u/i distingits per a la fusió
 // PROSÒDIA INTERLÈXICA: contacte de vocals de dues paraules diferents -> comportament segons opcions
 function interlexContact(a, b, o) {
-  const na = a.neutral, nb = b.neutral, qa = cls(a.ph), qb = cls(b.ph);
-  if (na && nb) return o.fusioSchwa ? 'fusio' : 'hiat';      // x + x
-  if (!na && !nb && qa === qb) return o.elideEqual ? 'elide' : 'hiat'; // plenes iguals (a+a)
-  if (na && !nb && b.stress) {                               // x + tònica
-    if (qb === 'i') return o.schwaI;
-    if (qb === 'u') return o.schwaU;
-    return o.schwaMid;                                       // a/e/o
+  // FUSIONAR VOCALS IGUALS (per qualitat; X/A compta com una sola vocal)
+  if (fuseKey(a) === fuseKey(b) && o.fuse.has(fuseKey(a))) return 'elide';
+  const xaA = isXA(a), xaB = isXA(b);
+  if (xaA && !a.stress && b.stress && !xaB) {                // X/A + tònica
+    const q = cls(b.ph);
+    if (q === 'i') return o.sxI;
+    if (q === 'u') return o.sxU;
+    if (q === 'o') return o.sxO;
+    return o.sxE;                                            // e
   }
-  if (!na && a.stress && nb) {                               // tònica + x
-    if (qa === 'a') return o.aSchwa;
-    if (qa === 'e') return o.eSchwa;
-    if (qa === 'o') return o.oSchwa;
-    if (qa === 'i') return o.iSchwa;
-    if (qa === 'u') return o.uSchwa;
+  if (!xaA && a.stress && xaB && !b.stress) {                // tònica + X/A
+    const q = cls(a.ph);
+    if (q === 'i') return o.xsI;
+    if (q === 'u') return o.xsU;
+    if (q === 'o') return o.xsO;
+    return o.xsE;                                            // e
   }
   // arrodonir àtones: glida la vocal PLENA àtona (no la neutra) si la seva qualitat està activada
   const at = (!a.stress && !a.neutral) ? a : ((!b.stress && !b.neutral) ? b : null);
@@ -269,16 +273,9 @@ function readOpts() {
     sistema: $('sistema').value,
     upHangVow: $('uphangv').checked,
     upHangCons: $('uphangc').checked,
-    fusioSchwa: $('pfusio').checked,
-    elideEqual: $('pequal').checked,
-    schwaMid: $('pschwamid').value,
-    schwaI: $('pschwai').value,
-    schwaU: $('pschwau').value,
-    aSchwa: $('paschwa').value,
-    eSchwa: $('peschwa').value,
-    oSchwa: $('poschwa').value,
-    iSchwa: $('pischwa').value,
-    uSchwa: $('puschwa').value,
+    fuse: new Set([['fus_a', 'a'], ['fus_E', 'ɛ'], ['fus_e', 'e'], ['fus_u', 'u'], ['fus_O', 'ɔ'], ['fus_o', 'o']].filter(([id]) => $(id).checked).map(([, k]) => k)),
+    sxE: $('sx_e').value, sxI: $('sx_i').value, sxU: $('sx_u').value, sxO: $('sx_o').value,
+    xsE: $('xs_e').value, xsI: $('xs_i').value, xsU: $('xs_u').value, xsO: $('xs_o').value,
     round: new Set(['i', 'e', 'u', 'o'].filter(q => $('prnd_' + q).checked)),
     subs: subsFrom(getSubs()),
   };
@@ -317,7 +314,7 @@ async function downloadImage() {
   lines.forEach((l, i) => ctx.fillText(l, pad, pad + i * lh));
   const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = 'xsf.png'; a.click();
 }
-['mode', 'dialecte', 'tonicitat', 'espais', 'geminacio', 'sistema', 'uphangv', 'uphangc', 'pfusio', 'pequal', 'pschwamid', 'pschwai', 'pschwau', 'paschwa', 'peschwa', 'poschwa', 'pischwa', 'puschwa', 'prnd_i', 'prnd_e', 'prnd_u', 'prnd_o'].forEach(id => $(id).addEventListener('change', () => { if (id === 'mode') syncMode(); run(); }));
+['mode', 'dialecte', 'tonicitat', 'espais', 'geminacio', 'sistema', 'uphangv', 'uphangc', 'fus_a', 'fus_E', 'fus_e', 'fus_u', 'fus_O', 'fus_o', 'sx_e', 'sx_i', 'sx_u', 'sx_o', 'xs_e', 'xs_i', 'xs_u', 'xs_o', 'prnd_i', 'prnd_e', 'prnd_u', 'prnd_o'].forEach(id => $(id).addEventListener('change', () => { if (id === 'mode') syncMode(); run(); }));
 $('dl').addEventListener('click', downloadImage);
 let _deb;
 const liveRun = () => { clearTimeout(_deb); _deb = setTimeout(run, 180); };  // transcripció en viu (debounce)
