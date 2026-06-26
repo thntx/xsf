@@ -24,7 +24,7 @@
   .io > * { margin:0; min-height:180px; }
   #input { height:100%; }
   #outwrap { background:var(--pan); border:1px solid var(--bd); border-radius:12px; padding:14px; overflow:auto; }
-  #out { font-family:'XSF'; font-size:2.375rem; line-height:1.35; word-break:break-word; }
+  #out { font-family:'XSF'; font-size:4rem; line-height:1.35; word-break:break-word; }
   #out.afi { font-family:ui-monospace,monospace; font-size:1.5rem; line-height:1.5; }
   @media (max-width:680px) { .io { grid-template-columns:1fr; } }
   #debug { white-space:pre-wrap; color:#e88; font-family:ui-monospace,monospace; font-size:.8rem; margin-top:10px; }
@@ -39,6 +39,10 @@
   .lin.lsub { width:auto; flex:1; }
   .lx { background:#3a2730; color:#f9a; padding:5px 9px; border-radius:6px; font-weight:700; }
   .lbtns { display:flex; gap:8px; margin-top:8px; }
+  .prow { display:flex; gap:8px; align-items:center; margin:6px 0; font-size:.92rem; }
+  .prow select { margin-left:auto; min-width:120px; }
+  .prow.rnd { gap:16px; }
+  .psub { font-weight:600; color:var(--acc); margin:14px 0 4px; font-size:.9rem; }
 </style>
 </head>
 <body>
@@ -99,17 +103,50 @@
     <summary>Opcions Prosòdiques</summary>
     <div class="body">
       <div class="optblock">
-        <label class="opttitle"><input type="checkbox" id="diftongs"> Diftongs</label>
-        <p class="mut">Uneix dues vocals en contacte formant un diftong: una es torna semivocal (i→y, u→w, e→6, o→2). Parells de vocals en grafia XSF (x = neutra):</p>
-        <div id="diftList"></div>
+        <div class="opttitle">Prosòdia interlèxica</div>
+        <p class="mut">Com es resol el contacte de dues vocals <b>entre paraules</b> (x = vocal neutra).</p>
+
+        <label class="prow"><input type="checkbox" id="pfusio" checked> <span><b>x + x</b> → fusió (un sol so)</span></label>
+        <label class="prow"><input type="checkbox" id="pequal" checked> <span><b>vocals plenes iguals</b> (a + a) → elidir</span></label>
+
+        <div class="psub">Neutra + tònica</div>
+        <label class="prow"><span><b>x + a/e/o</b> tònica</span>
+          <select id="pschwamid"><option value="elide">Elidir</option><option value="hiat">Hiat</option></select></label>
+        <label class="prow"><span><b>x + i</b> tònica</span>
+          <select id="pschwai"><option value="elide">Elidir</option><option value="diftong">Diftong</option><option value="hiat">Hiat</option></select></label>
+        <label class="prow"><span><b>x + u</b> tònica</span>
+          <select id="pschwau"><option value="elide">Elidir</option><option value="diftong">Diftong</option><option value="hiat">Hiat</option></select></label>
+
+        <div class="psub">Tònica + neutra</div>
+        <label class="prow"><span><b>a</b> tònica + x</span>
+          <select id="paschwa"><option value="elide">Elidir</option><option value="hiat">Hiat</option></select></label>
+        <label class="prow"><span><b>e</b> tònica + x</span>
+          <select id="peschwa"><option value="diftong">Diftong</option><option value="hiat">Hiat</option><option value="elide">Elidir</option></select></label>
+        <label class="prow"><span><b>o</b> tònica + x</span>
+          <select id="poschwa"><option value="diftong">Diftong</option><option value="hiat">Hiat</option><option value="elide">Elidir</option></select></label>
+        <label class="prow"><span><b>i</b> tònica + x</span>
+          <select id="pischwa"><option value="diftong">Diftong</option><option value="hiat">Hiat</option><option value="elide">Elidir</option></select></label>
+        <label class="prow"><span><b>u</b> tònica + x</span>
+          <select id="puschwa"><option value="diftong">Diftong</option><option value="hiat">Hiat</option><option value="elide">Elidir</option></select></label>
+
+        <div class="psub">Arrodonir àtones</div>
+        <p class="mut">Quines vocals plenes <b>àtones</b> es tornen semivocal en contacte amb una altra vocal.</p>
+        <div class="prow rnd">
+          <label><input type="checkbox" id="prnd_i"> i</label>
+          <label><input type="checkbox" id="prnd_e" checked> e</label>
+          <label><input type="checkbox" id="prnd_u"> u</label>
+          <label><input type="checkbox" id="prnd_o" checked> o</label>
+        </div>
       </div>
+
       <div class="optblock">
-        <label class="opttitle"><input type="checkbox" id="elisio" checked> Elisions</label>
-        <p class="mut">Elimina la vocal neutra quan entra en contacte amb una altra vocal en l'enllaç de paraules. Contactes on aplicar-ho (x = neutra):</p>
-        <div id="elisList"></div>
+        <div class="opttitle">Prosòdia intralèxica</div>
+        <label class="prow"><input type="checkbox" id="pforce"> <span><b>Forçar diftongs creixents</b></span></label>
+        <p class="mut">Converteix en diftong la <b>i/u àtona + a/e/o/x</b> dins de la mateixa paraula, només en paraules de <b>més de dues síl·labes</b> i quan la segona vocal quedaria <b>penjada</b> (connexió → kunxksyó, opció, història, gràcia…). Salta els hiats marcats amb dièresi (diürn, ruïna).</p>
       </div>
+
       <div class="optblock">
-        <label class="opttitle">Substitucions</label>
+        <div class="opttitle">Substitucions</div>
         <p class="mut">Força la transcripció XSF d'una paraula concreta (p. ex. però → prò+):</p>
         <div id="subsList"></div>
       </div>

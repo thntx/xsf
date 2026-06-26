@@ -35,13 +35,72 @@ const NEUTRAL = new Set(['ə', 'ɐ']);
 const GLIDE = { i: 'y', u: 'w', e: '6', 'ɛ': '6', o: '2', 'ɔ': '2', 'ʊ': 'w' };
 const SON = { a: 5, 'ɛ': 4, e: 4, 'ɔ': 4, o: 4, 'ə': 3, 'ɐ': 3, i: 2, u: 2, 'ʊ': 2 };
 const QACC = { e: '́', o: '́', 'ɛ': '̀', 'ɔ': '̀' }; // accent de qualitat (agut/greu) a transferir al nucli quan e/o glida
+// ---- prosòdia: mecàniques de contacte de vocals ----
+// quina de les dues vocals glida en un diftong ('a'|'b'|null). La neutra (ə) mai glida -> és el nucli.
+function glideMember(a, b) {
+  if (a.neutral && b.neutral) return null;
+  if (a.neutral) return 'b';
+  if (b.neutral) return 'a';
+  if (a.stress && !b.stress) return 'b';
+  if (b.stress && !a.stress) return 'a';
+  return (SON[a.ph] || 3) <= (SON[b.ph] || 3) ? 'a' : 'b';   // glida la de menys sonoritat
+}
+// quina vocal s'elideix ('a'|'b'): es manté la tònica; entre àtones cau la neutra; si no, la primera.
+function elideMember(a, b) {
+  if (a.stress && !b.stress) return 'b';
+  if (b.stress && !a.stress) return 'a';
+  if (a.neutral && !b.neutral) return 'a';
+  if (b.neutral && !a.neutral) return 'b';
+  return 'a';
+}
+function applyContact(beh, a, b) {
+  if (beh === 'fusio') { b.dead = true; return; }            // ə+ə -> un sol ə
+  if (beh === 'elide') { const m = elideMember(a, b); (m === 'a' ? a : b).dead = true; return; }
+  if (beh === 'diftong') {
+    const m = glideMember(a, b); if (!m) return;
+    const g = m === 'a' ? a : b, nuc = m === 'a' ? b : a, gl = GLIDE[g.ph];
+    if (!gl) return;                                          // sense forma de semivocal (a) -> hiat
+    g.key = gl; g.glide = true; g.vowel = false;
+    if (QACC[g.ph]) nuc.key += QACC[g.ph];                   // l'accent de qualitat (é/ò…) passa al nucli
+    if (g.stress) { g.stress = false; nuc.stress = true; }   // i la tonicitat també
+  }
+}
+// PROSÒDIA INTERLÈXICA: contacte de vocals de dues paraules diferents -> comportament segons opcions
+function interlexContact(a, b, o) {
+  const na = a.neutral, nb = b.neutral, qa = cls(a.ph), qb = cls(b.ph);
+  if (na && nb) return o.fusioSchwa ? 'fusio' : 'hiat';      // x + x
+  if (!na && !nb && qa === qb) return o.elideEqual ? 'elide' : 'hiat'; // plenes iguals (a+a)
+  if (na && !nb && b.stress) {                               // x + tònica
+    if (qb === 'i') return o.schwaI;
+    if (qb === 'u') return o.schwaU;
+    return o.schwaMid;                                       // a/e/o
+  }
+  if (!na && a.stress && nb) {                               // tònica + x
+    if (qa === 'a') return o.aSchwa;
+    if (qa === 'e') return o.eSchwa;
+    if (qa === 'o') return o.oSchwa;
+    if (qa === 'i') return o.iSchwa;
+    if (qa === 'u') return o.uSchwa;
+  }
+  // arrodonir àtones: glida la vocal PLENA àtona (no la neutra) si la seva qualitat està activada
+  const at = (!a.stress && !a.neutral) ? a : ((!b.stress && !b.neutral) ? b : null);
+  if (at && o.round.has(cls(at.ph)) && GLIDE[at.ph]) return 'diftong';
+  return 'hiat';
+}
+// la vocal-nucli (índex j; el seu predecessor és la vocal que potser glida) PENJARIA?
+// Penja si no té coda pròpia: fi de paraula, una altra vocal a la dreta, o una consonant
+// que se l'endú la vocal següent (és onset, CV) en lloc de quedar-li com a coda (VC).
+function nucleusHangs(toks, j) {
+  const b = toks[j], c = toks[j + 1];
+  if (!c || c.w !== b.w || c.vowel) return true;
+  const v = toks[j + 2];
+  if (v && v.w === b.w && v.vowel) return true;
+  return false;
+}
 const STRESS_RE = /^[ˈˌ]/;
 const DIAC = /[ːʰ‿͡‍]/g;
 const cls = v => ({ 'ɛ': 'e', 'ɔ': 'o', 'ɐ': 'ə', 'ʊ': 'u' }[v] || v);
-// classe vocàlica acceptant tant AFI com grafia XSF (per a la llista de parells)
-const VCLASS = { a: 'a', 'à': 'a', e: 'e', 'è': 'e', 'é': 'e', 'ɛ': 'e', i: 'i', 'í': 'i', o: 'o', 'ò': 'o', 'ó': 'o', 'ɔ': 'o', u: 'u', 'ú': 'u', x: 'ə', 'ə': 'ə', 'ɐ': 'ə' };
-const vclass = t => VCLASS[t] || cls(t);
-const NUMROW_SHIFT = { 'º': 'ª', '1': '!', '2': '"', '3': '·', '4': '$', '5': '%', '6': '&', '7': '/', '8': '(', '9': ')', '0': '=', "'": '?', '¡': '¿' };
+const NUMROW_SHIFT ={ 'º': 'ª', '1': '!', '2': '"', '3': '·', '4': '$', '5': '%', '6': '&', '7': '/', '8': '(', '9': ')', '0': '=', "'": '?', '¡': '¿' };
 const integralOf = c => NUMROW_SHIFT[c] || c.toUpperCase();
 
 // ---- segmentadors ----
@@ -87,33 +146,26 @@ function processWords(words, srcWords, opts) {
     toks.push({ ph: p, key: (p in map) ? map[p] : '«' + p + '»', vowel: VOWELS.has(p), neutral: NEUTRAL.has(p), stress, w: wi, word: srcWords ? (srcWords[wi] || '') : '', glide: false, dead: false });
   }));
 
-  if (opts.diftongs && opts.pairs.size) {
-    for (let i = 0; i + 1 < toks.length; i++) {
-      const a = toks[i], b = toks[i + 1];
-      if (a.dead || b.dead || !a.vowel || !b.vowel || a.glide || b.glide) continue;
-      if (!opts.pairs.has(cls(a.ph) + cls(b.ph))) continue;
-      let gi;
-      if (a.neutral && !b.neutral) gi = i + 1;
-      else if (b.neutral && !a.neutral) gi = i;
-      else if ((SON[a.ph] || 3) <= (SON[b.ph] || 3)) gi = i;
-      else gi = i + 1;
-      const g = toks[gi], nuc = toks[gi === i ? i + 1 : i], gl = GLIDE[g.ph];
-      if (!gl) continue;
-      if (g.stress && 'iuʊ'.includes(g.ph)) continue;
-      g.key = gl; g.glide = true; g.vowel = false;
-      if (QACC[g.ph]) nuc.key += QACC[g.ph];               // transfereix l'accent de qualitat (é→6: la x agafa l'agut → x́)
-      if (g.stress) { g.stress = false; nuc.stress = true; }
+  // nombre de síl·labes per paraula (nuclis vocàlics) abans de processar contactes
+  const syl = {};
+  for (const t of toks) if (t.vowel) syl[t.w] = (syl[t.w] || 0) + 1;
+  // PROSÒDIA: contacte de vocals adjacents (una sola passada, d'esquerra a dreta)
+  const RNUC = ['a', 'e', 'o', 'ə'];
+  for (let i = 0; i + 1 < toks.length; i++) {
+    const a = toks[i], b = toks[i + 1];
+    if (a.dead || b.dead || a.glide || b.glide || !a.vowel || !b.vowel) continue;
+    let beh = 'hiat';
+    if (a.w === b.w) {
+      // INTRALÈXICA: forçar diftongs creixents. Només i/u àtona + a/e/o/ə on la 2a vocal
+      // quedaria PENJADA, en paraules de més de 2 síl·labes, i saltant hiats amb dièresi (ï/ü).
+      const qa = cls(a.ph);
+      if (opts.forceRising && !a.stress && (qa === 'i' || qa === 'u') &&
+          RNUC.includes(cls(b.ph)) && (syl[a.w] || 0) > 2 &&
+          !/[ïü]/.test(a.word || '') && nucleusHangs(toks, i + 1)) beh = 'diftong';
+    } else {
+      beh = interlexContact(a, b, opts);
     }
-  }
-  if (opts.elisio) {
-    for (let i = 0; i + 1 < toks.length; i++) {
-      const a = toks[i], b = toks[i + 1];
-      if (a.dead || b.dead || a.w === b.w || !a.vowel || !b.vowel) continue;
-      if (!opts.elisionPairs.has(cls(a.ph) + cls(b.ph))) continue;     // només els contactes de la llista
-      if (a.neutral && b.neutral) { if (b.stress) a.dead = true; else b.dead = true; }
-      else if (a.neutral) a.dead = true;
-      else if (b.neutral) b.dead = true;
-    }
+    applyContact(beh, a, b);
   }
 
   const live = toks.filter(t => !t.dead);
@@ -195,14 +247,9 @@ async function convert(text, opts) {
   return { xsf: r.xsf, afi: r.ipa, unknown: r.unknown };
 }
 
-// ---- llistes interactives (diftongs / elisions / substitucions) amb persistència ----
-// diftongs catalans per defecte: glides creixents (i/u + V), ə + i/u, i la "rodonització" e/o
-const DIFT_DEF = [['i', 'a'], ['i', 'e'], ['i', 'o'], ['i', 'u'], ['u', 'a'], ['u', 'e'], ['u', 'i'], ['u', 'o'], ['x', 'i'], ['x', 'u'], ['e', 'x'], ['o', 'x']];
-// elisions per defecte: tots els contactes amb vocal neutra (x = ə)
-const ELIS_DEF = [['x', 'a'], ['x', 'e'], ['x', 'i'], ['x', 'o'], ['x', 'u'], ['x', 'x'], ['a', 'x'], ['e', 'x'], ['i', 'x'], ['o', 'x'], ['u', 'x']];
+// ---- llista interactiva de substitucions (amb persistència) ----
 const SUBS_DEF = [['però', 'prò+']];
-let getDift, getElis, getSubs;
-function pairsFrom(arr) { const s = new Set(); arr.forEach(([a, b]) => { if (a && b) s.add(vclass(a.trim()) + vclass(b.trim())); }); return s; }
+let getSubs;
 function subsFrom(arr) { const m = new Map(); arr.forEach(([w, x]) => { if (w && x) m.set(w.trim().toLowerCase(), x.trim()); }); return m; }
 function buildList(host, key, defaults, fields, onchange) {
   let data;
@@ -244,12 +291,20 @@ function readOpts() {
     espais: $('espais').checked,
     geminacio: $('geminacio').checked,
     sistema: $('sistema').value,
-    elisio: $('elisio').checked,
-    diftongs: $('diftongs').checked,
     upHangVow: $('uphangv').checked,
     upHangCons: $('uphangc').checked,
-    pairs: pairsFrom(getDift()),
-    elisionPairs: pairsFrom(getElis()),
+    fusioSchwa: $('pfusio').checked,
+    elideEqual: $('pequal').checked,
+    schwaMid: $('pschwamid').value,
+    schwaI: $('pschwai').value,
+    schwaU: $('pschwau').value,
+    aSchwa: $('paschwa').value,
+    eSchwa: $('peschwa').value,
+    oSchwa: $('poschwa').value,
+    iSchwa: $('pischwa').value,
+    uSchwa: $('puschwa').value,
+    round: new Set(['i', 'e', 'u', 'o'].filter(q => $('prnd_' + q).checked)),
+    forceRising: $('pforce').checked,
     subs: subsFrom(getSubs()),
   };
 }
@@ -287,14 +342,12 @@ async function downloadImage() {
   lines.forEach((l, i) => ctx.fillText(l, pad, pad + i * lh));
   const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = 'xsf.png'; a.click();
 }
-['mode', 'dialecte', 'tonicitat', 'espais', 'geminacio', 'sistema', 'elisio', 'diftongs', 'uphangv', 'uphangc'].forEach(id => $(id).addEventListener('change', () => { if (id === 'mode') syncMode(); run(); }));
+['mode', 'dialecte', 'tonicitat', 'espais', 'geminacio', 'sistema', 'uphangv', 'uphangc', 'pfusio', 'pequal', 'pschwamid', 'pschwai', 'pschwau', 'paschwa', 'peschwa', 'poschwa', 'pischwa', 'puschwa', 'prnd_i', 'prnd_e', 'prnd_u', 'prnd_o', 'pforce'].forEach(id => $(id).addEventListener('change', () => { if (id === 'mode') syncMode(); run(); }));
 $('dl').addEventListener('click', downloadImage);
 let _deb;
 const liveRun = () => { clearTimeout(_deb); _deb = setTimeout(run, 180); };  // transcripció en viu (debounce)
 $('input').addEventListener('input', liveRun);
 function initLists() {
-  getDift = buildList($('diftList'), 'xsf_dift', DIFT_DEF, [{ ph: 'V1' }, { ph: 'V2' }], liveRun);
-  getElis = buildList($('elisList'), 'xsf_elis', ELIS_DEF, [{ ph: 'V1' }, { ph: 'V2' }], liveRun);
   getSubs = buildList($('subsList'), 'xsf_subs2', SUBS_DEF, [{ ph: 'paraula', wide: true }, { ph: 'XSF', wide: true }], liveRun);
 }
 initLists(); syncMode();
