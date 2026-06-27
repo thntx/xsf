@@ -133,6 +133,20 @@ function setCaret(start, end) {
 }
 function updatePh() { src.classList.toggle('empty', getText() === ''); }
 
+// Blink NO aplica el kern que travessa el bloquejador '  ' quan el text s'ha TECLEJAT dins
+// d'un contenteditable: el node de text queda amb marques internes d'espai d'edició que
+// trenquen el shaping a l'espai. Reconstruir el node (textContent net) força un reshape i
+// llavors SÍ que s'aplica el kern entre les dues lletres. (setText ja ho fa; per això els
+// botons i l'undo ja sortien bé i només fallava l'escriptura en directe.)
+let composing = false;
+function reshapeBlocker() {
+  const t = getText();
+  if (t.indexOf('  ') < 0) return;          // només quan hi ha el bloquejador (doble espai)
+  const [a, b] = selOffsets();
+  src.textContent = t;                       // node net -> Blink reshape amb kern
+  setCaret(a, b);
+}
+
 // historial d'undo/redo (estats de text)
 let hist = [''], hidx = 0, typeTimer = null;
 function commit(val) { if (val === hist[hidx]) return; hist = hist.slice(0, hidx + 1); hist.push(val); hidx = hist.length - 1; }
@@ -140,7 +154,9 @@ function flushTyping() { if (typeTimer) { clearTimeout(typeTimer); typeTimer = n
 function undo() { if (hidx > 0) { hidx--; setText(hist[hidx]); setCaret(hist[hidx].length, hist[hidx].length); } }
 function redo() { if (hidx < hist.length - 1) { hidx++; setText(hist[hidx]); setCaret(hist[hidx].length, hist[hidx].length); } }
 
-src.addEventListener('input', () => { updatePh(); clearTimeout(typeTimer); typeTimer = setTimeout(() => commit(getText()), 350); });
+src.addEventListener('input', () => { if (!composing) reshapeBlocker(); updatePh(); clearTimeout(typeTimer); typeTimer = setTimeout(() => commit(getText()), 350); });
+src.addEventListener('compositionstart', () => { composing = true; });
+src.addEventListener('compositionend', () => { composing = false; reshapeBlocker(); updatePh(); });
 src.addEventListener('keydown', e => {
   if (!(e.ctrlKey || e.metaKey)) return;
   const z = e.key === 'z' || e.key === 'Z', y = e.key === 'y' || e.key === 'Y';
