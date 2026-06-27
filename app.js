@@ -319,7 +319,7 @@ async function run() {
     $('out').classList.toggle('afi', !xsfOut);
     $('out').textContent = xsfOut ? (r.xsfD || r.xsf) : r.afi;   // display amb oportunitats de tall (U+200B)
     $('debug').textContent = (r.unknown && r.unknown.length) ? ('sense mapeig: ' + r.unknown.join(' ')) : '';
-    $('status').textContent = ''; window._out = xsfOut ? r.xsf : r.afi; window._xsf = xsfOut;   // _out net per a la imatge
+    $('status').textContent = ''; window._out = xsfOut ? r.xsf : r.afi; window._outD = xsfOut ? (r.xsfD || r.xsf) : ''; window._xsf = xsfOut;   // _out net; _outD amb punts de tall per a l'ajust de la imatge
     updatePreview();
   } catch (e) { $('status').textContent = 'error: ' + e.message; }
 }
@@ -331,43 +331,81 @@ function syncMode() {
   $('ortobox').style.display = OUT_XSF(m) ? '' : 'none';   // les opcions ortogràfiques només per a sortida XSF
   $('imgbox').style.display = OUT_XSF(m) ? '' : 'none';    // la imatge és en font XSF -> només per a sortida XSF
 }
-// ---- imatge: canvas de dimensions fixes, lletra auto-ajustada per OMPLIR (render únic) ----
+// ---- imatge: canvas de dimensions fixes; ajusta el text en línies (per espais, o si no n'hi ha,
+// per composites/lligatures) i fa la lletra tan gran com cap, OMPLINT el canvas. ----
 function imgOpts() {
   const num = (id, d) => { const v = parseFloat($(id).value); return isNaN(v) ? d : v; };
   return { W: Math.max(1, Math.round(num('imgw', 1920))), H: Math.max(1, Math.round(num('imgh', 1080))),
-           pad: Math.max(0, num('imgpad', 40)), lh: num('imglh', 1) || 1,
+           padPct: Math.min(45, Math.max(0, num('imgpad', 5))), lh: num('imglh', 1) || 1,
            color: $('color').value, bg: $('bgcolor').value, transparent: $('transparent').checked, align: $('imgalign').value };
 }
-function drawLine(ctx, line, o, innerW, y, isLast) {       // alineació (incl. justificat) d'una línia
-  if (o.align === 'justify' && !isLast && line.trim().includes(' ')) {
-    const parts = line.split(' '), ws = parts.map(p => ctx.measureText(p).width);
-    const gap = (innerW - ws.reduce((a, b) => a + b, 0)) / (parts.length - 1);
-    let x = o.pad; ctx.textAlign = 'left';
-    parts.forEach((p, i) => { ctx.fillText(p, x, y); x += ws[i] + gap; });
-  } else if (o.align === 'center') { ctx.textAlign = 'center'; ctx.fillText(line, o.pad + innerW / 2, y); }
-  else if (o.align === 'right') { ctx.textAlign = 'right'; ctx.fillText(line, o.pad + innerW, y); }
-  else { ctx.textAlign = 'left'; ctx.fillText(line, o.pad, y); }
+function drawRow(ctx, row, padX, innerW, by, align) {
+  if (!row.items.length) return;
+  if (align.startsWith('justify') && row.hasSpace && row.items.length > 1 && !row.last) {  // justifica: reparteix l'espai
+    const sum = row.items.reduce((a, it) => a + it.w, 0), gap = (innerW - sum) / (row.items.length - 1);
+    let x = padX; ctx.textAlign = 'left';
+    for (const it of row.items) { ctx.fillText(it.a, x, by); x += it.w + gap; }
+    return;
+  }
+  const str = row.items.map(it => it.a).join(row.hasSpace ? ' ' : '');
+  const mode = align === 'justify' ? 'left' : align === 'justify-center' ? 'center' : align;   // files no estirables
+  if (mode === 'center') { ctx.textAlign = 'center'; ctx.fillText(str, padX + innerW / 2, by); }
+  else if (mode === 'right') { ctx.textAlign = 'right'; ctx.fillText(str, padX + innerW, by); }
+  else { ctx.textAlign = 'left'; ctx.fillText(str, padX, by); }
 }
 async function renderTo(c) {                               // pinta al canvas c; retorna la mida de lletra (px) o 0
-  const xsf = window._out;
-  if (!window._xsf || !xsf || !xsf.trim()) { c.width = c.height = 0; return 0; }
+  const src = window._outD || window._out;
+  if (!window._xsf || !src || !src.trim()) { c.width = c.height = 0; return 0; }
   const o = imgOpts();
   c.width = o.W; c.height = o.H;
   const ctx = c.getContext('2d');
   if (!o.transparent) { ctx.fillStyle = o.bg; ctx.fillRect(0, 0, o.W, o.H); }
-  const lines = xsf.split('\n');
-  const innerW = Math.max(1, o.W - 2 * o.pad), innerH = Math.max(1, o.H - 2 * o.pad);
-  const REF = 200;                                          // mesura a mida de referència i escala
+  const padX = o.W * o.padPct / 100, padY = o.H * o.padPct / 100;
+  const innerW = Math.max(1, o.W - 2 * padX), innerH = Math.max(1, o.H - 2 * padY);
+  const REF = 200;
   await document.fonts.load(REF + 'px XSF');
   ctx.font = REF + 'px XSF';
-  const maxW = Math.max(1, ...lines.map(l => ctx.measureText(l).width || 0));
-  // mida perquè el bloc OMPLI l'àrea interior, limitat per amplada o per alçada
-  const S = Math.max(1, Math.min(innerW * REF / maxW, innerH / (lines.length * o.lh)));
+  const ZW = /​/g;
+  // línies dures -> àtoms: PARAULES si hi ha espais; si no, COMPOSITES (per no tallar lligatures)
+  const hard = src.split('\n').map(raw => {
+    const hasSpace = raw.includes(' ');
+    const atoms = (hasSpace ? raw.split(' ') : raw.split('​')).map(a => a.replace(ZW, '')).filter(a => a.length);
+    return { hasSpace, atoms };
+  });
+  let maxAsc = 0, maxDesc = 0; const spaceW = ctx.measureText(' ').width;
+  const wref = hard.map(hl => hl.atoms.map(a => {           // amplada de cada àtom + ascens/descens reals (per als accents)
+    const m = ctx.measureText(a);
+    maxAsc = Math.max(maxAsc, m.actualBoundingBoxAscent || REF * 0.8);
+    maxDesc = Math.max(maxDesc, m.actualBoundingBoxDescent || REF * 0.25);
+    return m.width;
+  }));
+  const extra = maxAsc + maxDesc;                          // alçada d'ink d'una línia
+  function layout(scale) {                                 // distribueix els àtoms en files a una escala
+    const sw = spaceW * scale; let ok = true; const rows = []; let maxW = 0;
+    hard.forEach((hl, hi) => {
+      if (!hl.atoms.length) { rows.push({ items: [], w: 0, last: true, hasSpace: hl.hasSpace }); return; }
+      let cur = [], curW = 0;
+      for (let k = 0; k < hl.atoms.length; k++) {
+        const w = wref[hi][k] * scale; if (w > innerW + 0.5) ok = false;
+        const add = cur.length ? (hl.hasSpace ? sw : 0) + w : w;
+        if (cur.length && curW + add > innerW) { rows.push({ items: cur, w: curW, last: false, hasSpace: hl.hasSpace }); maxW = Math.max(maxW, curW); cur = [{ a: hl.atoms[k], w }]; curW = w; }
+        else { cur.push({ a: hl.atoms[k], w }); curW += add; }
+      }
+      rows.push({ items: cur, w: curW, last: true, hasSpace: hl.hasSpace }); maxW = Math.max(maxW, curW);
+    });
+    return { rows, maxW, height: scale * extra + (rows.length - 1) * scale * REF * o.lh, ok };
+  }
+  let lo = 0, hi = innerH / extra;                          // cerca binària de l'escala més gran que cap
+  for (let it = 0; it < 42; it++) {
+    const mid = (lo + hi) / 2, L = layout(mid);
+    if (L.ok && L.height <= innerH && L.maxW <= innerW) lo = mid; else hi = mid;
+  }
+  const scale = lo, S = REF * scale, L = layout(scale);
   await document.fonts.load(S + 'px XSF');
-  ctx.font = S + 'px XSF'; ctx.fillStyle = o.color; ctx.textBaseline = 'top';
-  const lineH = S * o.lh;
-  let y = o.pad + (innerH - lines.length * lineH) / 2;      // bloc centrat verticalment
-  for (let i = 0; i < lines.length; i++) { drawLine(ctx, lines[i], o, innerW, y, i === lines.length - 1); y += lineH; }
+  ctx.font = S + 'px XSF'; ctx.fillStyle = o.color; ctx.textBaseline = 'alphabetic';
+  const adv = S * o.lh;
+  let by = padY + (innerH - L.height) / 2 + maxAsc * scale; // baseline de la primera fila (deixa espai per a l'accent)
+  for (const row of L.rows) { drawRow(ctx, row, padX, innerW, by, o.align); by += adv; }
   return Math.round(S);
 }
 async function updatePreview() {
