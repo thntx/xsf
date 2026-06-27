@@ -379,7 +379,10 @@ async function renderTo(c) {                               // pinta al canvas c;
     maxDesc = Math.max(maxDesc, m.actualBoundingBoxDescent || REF * 0.25);
     return m.width;
   }));
-  const extra = maxAsc + maxDesc;                          // alçada d'ink d'una línia
+  const extra = maxAsc + maxDesc, lhExtraRef = Math.max(0, o.lh - 1) * REF;   // ink d'una línia (a REF)
+  // avanç entre línies base = ink màxim teòric + 2px mínims (interlínia 1) + extra si interlínia > 1.
+  // Així una línia amb cua/+ avall i l'accent de la següent no es toquen mai.
+  const advAt = scale => scale * (extra + lhExtraRef) + 2;
   function layout(scale) {                                 // distribueix els àtoms en files a una escala
     const sw = spaceW * scale; let ok = true; const rows = []; let maxW = 0;
     hard.forEach((hl, hi) => {
@@ -393,7 +396,7 @@ async function renderTo(c) {                               // pinta al canvas c;
       }
       rows.push({ items: cur, w: curW, last: true, hasSpace: hl.hasSpace }); maxW = Math.max(maxW, curW);
     });
-    return { rows, maxW, height: scale * extra + (rows.length - 1) * scale * REF * o.lh, ok };
+    return { rows, maxW, height: scale * extra + (rows.length - 1) * advAt(scale), ok };
   }
   let lo = 0, hi = innerH / extra;                          // cerca binària de l'escala més gran que cap
   for (let it = 0; it < 42; it++) {
@@ -403,9 +406,9 @@ async function renderTo(c) {                               // pinta al canvas c;
   const scale = lo, S = REF * scale, L = layout(scale);
   await document.fonts.load(S + 'px XSF');
   ctx.font = S + 'px XSF'; ctx.fillStyle = o.color; ctx.textBaseline = 'alphabetic';
-  const adv = S * o.lh;
+  const advance = advAt(scale);
   let by = padY + (innerH - L.height) / 2 + maxAsc * scale; // baseline de la primera fila (deixa espai per a l'accent)
-  for (const row of L.rows) { drawRow(ctx, row, padX, innerW, by, o.align); by += adv; }
+  for (const row of L.rows) { drawRow(ctx, row, padX, innerW, by, o.align); by += advance; }
   return Math.round(S);
 }
 async function updatePreview() {
