@@ -8,7 +8,8 @@ const integralOf = c => NUMROW_SHIFT[c] || c.toUpperCase();
 const deIntegral = c => SHIFT_BACK[c] || c.toLowerCase();
 const toBase = g => [...g].map(deIntegral).join('');
 const toIntegral = g => [...g].map(integralOf).join('');
-const VOWELS = new Set(['a', 'ɛ', 'e', 'i', 'ɔ', 'o', 'u', 'ə', 'ɐ', 'ʊ']);
+// vocal segons la LLETRA base (treu accents amb NFD): a e i o u x(=ə). La resta de grafemes són consonants.
+const isVowel = g => 'aeioux'.includes((g.normalize('NFD')[0] || '').toLowerCase());
 
 async function loadMap() {
   if (MAP) return;
@@ -37,15 +38,12 @@ function tokenize(str) {
     const ch = base[i];
     if (ch === ' ' || ch === '\n' || ch === '\t') { toks.push({ kind: 'sep', s: i, e: i + 1, w }); w++; i++; continue; }
     if (ch === '+') { toks.push({ kind: 'mark', s: i, e: i + 1, w }); i++; continue; }
-    let g = null;
-    for (const cand of GRAPHS) { if (cand && base.startsWith(cand, i)) { g = cand; break; } }
-    if (g) {
-      const ipa = RMAP[g];
-      toks.push({ kind: 'graph', s: i, e: i + g.length, w, base: g,
-                  vowel: !!ipa && VOWELS.has(ipa), cons: !!ipa && !VOWELS.has(ipa),
-                  out: str.slice(i, i + g.length) });
-      i += g.length;
-    } else { toks.push({ kind: 'other', s: i, e: i + 1, w }); i++; }
+    let L = 1;                                              // grafema multi-caràcter del mapa (3z, t1…) o un sol caràcter
+    for (const cand of GRAPHS) { if (cand && base.startsWith(cand, i)) { L = cand.length; break; } }
+    while (i + L < base.length && base.charCodeAt(i + L) >= 0x300 && base.charCodeAt(i + L) <= 0x36f) L++;  // accents combinants
+    const bg = base.slice(i, i + L), v = isVowel(bg);
+    toks.push({ kind: 'graph', s: i, e: i + L, w, base: bg, vowel: v, cons: !v, out: str.slice(i, i + L) });
+    i += L;
   }
   return toks;
 }
@@ -85,20 +83,18 @@ function applyAction(str, act, selS, selE) {
   return out;
 }
 
-// ---- UI ----
+// ---- UI ---- (s'escriu directament a #src, que ja és en font XSF: és alhora l'entrada i el render)
 const $ = id => document.getElementById(id);
-const src = $('src'), out = $('out');
-const render = () => { out.textContent = src.value; };
+const src = $('src');
 
 // historial d'undo/redo (estats de text)
 let hist = [''], hidx = 0, typeTimer = null;
 function commit(val) { if (val === hist[hidx]) return; hist = hist.slice(0, hidx + 1); hist.push(val); hidx = hist.length - 1; }
 function flushTyping() { if (typeTimer) { clearTimeout(typeTimer); typeTimer = null; } commit(src.value); }
-function restore(val) { src.value = val; render(); }
-function undo() { if (hidx > 0) { hidx--; restore(hist[hidx]); } }
-function redo() { if (hidx < hist.length - 1) { hidx++; restore(hist[hidx]); } }
+function undo() { if (hidx > 0) { hidx--; src.value = hist[hidx]; } }
+function redo() { if (hidx < hist.length - 1) { hidx++; src.value = hist[hidx]; } }
 
-src.addEventListener('input', () => { render(); clearTimeout(typeTimer); typeTimer = setTimeout(() => commit(src.value), 350); });
+src.addEventListener('input', () => { clearTimeout(typeTimer); typeTimer = setTimeout(() => commit(src.value), 350); });
 src.addEventListener('keydown', e => {
   if (!(e.ctrlKey || e.metaKey)) return;
   const z = e.key === 'z' || e.key === 'Z', y = e.key === 'y' || e.key === 'Y';
@@ -111,10 +107,10 @@ document.querySelectorAll('button[data-act]').forEach(b => b.addEventListener('c
   flushTyping();
   const selS = src.selectionStart, selE = src.selectionEnd;
   const nv = applyAction(src.value, b.dataset.act, selS, selE);
-  src.value = nv; render(); commit(nv);
+  src.value = nv; commit(nv);
   src.selectionStart = selS; src.selectionEnd = selE; src.focus();
 }));
 $('undo').addEventListener('click', () => { flushTyping(); undo(); src.focus(); });
 $('redo').addEventListener('click', () => { flushTyping(); redo(); src.focus(); });
 
-loadMap().then(() => { render(); $('status').textContent = 'a punt'; });
+loadMap();

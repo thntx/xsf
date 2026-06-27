@@ -21,13 +21,8 @@
   .tgroup .lbl { color:var(--mut); font-size:.78rem; margin-right:2px; }
   button { background:#2a2d36; color:var(--fg); border:1px solid var(--bd); border-radius:8px; padding:8px 12px; font-weight:600; cursor:pointer; }
   button:hover { border-color:var(--acc); }
-  .io { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:stretch; margin-top:6px; }
-  .io > * { margin:0; min-height:320px; }
-  #src { width:100%; height:100%; background:var(--pan); color:var(--fg); border:1px solid var(--bd); border-radius:12px; padding:14px; font-family:ui-monospace,monospace; font-size:1.4rem; resize:vertical; }
-  #outwrap { background:var(--pan); border:1px solid var(--bd); border-radius:12px; padding:14px; overflow:auto; }
-  #out { font-family:'XSF'; font-size:3rem; line-height:1.35; white-space:pre-wrap; word-break:normal; overflow-wrap:normal; }
-  #status { color:var(--acc); font-size:.85rem; min-height:1.2em; margin-top:8px; }
-  @media (max-width:680px) { .io { grid-template-columns:1fr; } }
+  /* l'àrea d'edició ja és en font XSF: hi escrius i ho veus renderitzat */
+  #src { width:100%; min-height:440px; background:var(--pan); color:var(--fg); border:1px solid var(--bd); border-radius:12px; padding:16px 18px; font-family:'XSF'; font-size:3rem; line-height:1.35; resize:vertical; white-space:pre-wrap; word-break:normal; overflow-wrap:normal; }
 </style>
 </head>
 <body>
@@ -37,21 +32,16 @@
 </nav>
 <div class="wrap">
   <h1>Editor</h1>
-  <p class="mut">Escriu directament en XSF. Els botons s'apliquen a la <b>selecció</b>; si no hi ha res seleccionat, a <b>tot</b> el text. Ctrl+Z / Ctrl+Y (o Ctrl+Maj+Z) per desfer i refer.</p>
   <div class="toolbar">
     <div class="tgroup"><span class="lbl">Mode</span>
       <button data-act="kib">KIB</button><button data-act="ktb">KTB</button><button data-act="bkk">BKK</button></div>
     <div class="tgroup"><span class="lbl">Vocals penjades</span>
-      <button data-act="integraVoc">Integra</button><button data-act="minvaVoc">Minva</button></div>
+      <button data-act="integraVoc">Creix</button><button data-act="minvaVoc">Minva</button></div>
     <div class="tgroup"><span class="lbl">Consonants penjades</span>
-      <button data-act="integraCons">Integra</button><button data-act="minvaCons">Minva</button></div>
+      <button data-act="integraCons">Creix</button><button data-act="minvaCons">Minva</button></div>
     <div class="tgroup"><button id="undo" title="Ctrl+Z">↶</button><button id="redo" title="Ctrl+Y">↷</button></div>
   </div>
-  <div class="io">
-    <textarea id="src" spellcheck="false" placeholder="escriu en XSF…"></textarea>
-    <div id="outwrap"><div id="out"></div></div>
-  </div>
-  <div id="status">carregant…</div>
+  <textarea id="src" spellcheck="false" placeholder="escriu en XSF…"></textarea>
 </div>
 <script type="module" src="editor.js"></script>
 </body>

@@ -447,4 +447,4 @@ function initLists() {
   getSubs = buildList($('subsList'), 'xsf_subs2', SUBS_DEF, [{ ph: 'paraula', wide: true }, { ph: 'XSF', wide: true }], liveRun);
 }
 initLists(); syncMode();
-loadMap().then(() => { $('status').textContent = 'a punt'; run(); });
+loadMap().then(() => { $('status').textContent = ''; run(); });
