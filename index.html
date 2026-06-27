@@ -24,8 +24,9 @@
   .io > * { margin:0; min-height:180px; }
   #input { height:100%; }
   #outwrap { background:var(--pan); border:1px solid var(--bd); border-radius:12px; padding:14px; overflow:auto; }
-  #out { font-family:'XSF'; font-size:3rem; line-height:1.35; word-break:break-word; }
-  #out.afi { font-family:ui-monospace,monospace; font-size:1.5rem; line-height:1.5; }
+  /* white-space:pre-wrap conserva salts; SENSE word-break per no partir mai lligatures (les línies llargues fan scroll) */
+  #out { font-family:'XSF'; font-size:3rem; line-height:1.35; white-space:pre-wrap; overflow-wrap:normal; word-break:normal; }
+  #out.afi { font-family:ui-monospace,monospace; font-size:1.5rem; line-height:1.5; overflow-wrap:anywhere; }
   @media (max-width:680px) { .io { grid-template-columns:1fr; } }
   #debug { white-space:pre-wrap; color:#e88; font-family:ui-monospace,monospace; font-size:.8rem; margin-top:10px; }
   #status { color:var(--acc); font-size:.85rem; min-height:1.2em; }
@@ -43,6 +44,14 @@
   .prow label { display:inline-flex; align-items:center; gap:5px; }
   .prow select { padding:4px 6px; }
   .v { font-family:ui-monospace,monospace; font-size:1.05em; letter-spacing:.02em; }
+  button:disabled { opacity:.45; cursor:default; }
+  /* preview de la imatge: fons quadriculat perquè es vegi la transparència */
+  #prevwrap { margin:12px 0; padding:10px; border:1px solid var(--bd); border-radius:10px; overflow:auto; max-height:360px;
+    background-color:#fff;
+    background-image:linear-gradient(45deg,#d6d6d6 25%,transparent 25%),linear-gradient(-45deg,#d6d6d6 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#d6d6d6 75%),linear-gradient(-45deg,transparent 75%,#d6d6d6 75%);
+    background-size:20px 20px; background-position:0 0,0 10px,10px -10px,-10px 0; }
+  #imgprev { display:block; max-width:100%; height:auto; }
+  #imgmeta { align-self:center; }
 </style>
 </head>
 <body>
@@ -152,14 +161,26 @@
     </div>
   </details>
 
-  <details>
+  <details id="imgbox">
     <summary>Opcions d'Imatge</summary>
     <div class="body">
       <div class="row">
-        <label>Mida: <input type="number" id="imgsize" value="96" min="16" max="400" step="8"></label>
-        <label>Color: <input type="color" id="color" value="#000000"></label>
+        <label>Mida <input type="number" id="imgsize" value="96" min="16" max="400" step="8"></label>
+        <label>Marge <input type="number" id="imgpad" value="40" min="0" max="200" step="4"></label>
+        <label>Interlínia <input type="number" id="imglh" value="1.3" min="0.8" max="3" step="0.1"></label>
+        <label>Alineació
+          <select id="imgalign"><option value="left">Esquerra</option><option value="center">Centre</option><option value="right">Dreta</option></select></label>
+      </div>
+      <div class="row">
+        <label>Text <input type="color" id="color" value="#000000"></label>
+        <label>Fons <input type="color" id="bgcolor" value="#ffffff"></label>
         <label><input type="checkbox" id="transparent"> fons transparent</label>
-        <button id="dl">Descarrega imatge PNG</button>
+      </div>
+      <div id="prevwrap"><canvas id="imgprev"></canvas></div>
+      <div class="row">
+        <button id="dl">⬇ Descarrega PNG</button>
+        <button id="copyimg" class="sec">⧉ Copia</button>
+        <span id="imgmeta" class="mut"></span>
       </div>
     </div>
   </details>

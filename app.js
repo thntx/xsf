@@ -35,6 +35,7 @@ const NEUTRAL = new Set(['ə', 'ɐ']);
 const GLIDE = { i: 'y', u: 'w', e: '6', 'ɛ': '6', o: '2', 'ɔ': '2', 'ʊ': 'w' };
 const SON = { a: 5, 'ɛ': 4, e: 4, 'ɔ': 4, o: 4, 'ə': 3, 'ɐ': 3, i: 2, u: 2, 'ʊ': 2 };
 const QACC = { e: '́', o: '́', 'ɛ': '̀', 'ɔ': '̀' }; // accent de qualitat (agut/greu) a transferir al nucli quan e/o glida
+const SANDHI_VOICE = { s: 'z', 'ʃ': 'ʒ', ts: 'dz', 'tʃ': 'dʒ' }; // sibilants/africades sordes -> sonores davant vocal (sandhi)
 // ---- prosòdia: mecàniques de contacte de vocals ----
 // quina de les dues vocals glida en un diftong ('a'|'b'|null). La neutra (ə) mai glida -> és el nucli.
 function glideMember(a, b) {
@@ -140,6 +141,17 @@ function processWords(words, srcWords, opts) {
     toks.push({ ph: p, key: (p in map) ? map[p] : '«' + p + '»', vowel: VOWELS.has(p), neutral: NEUTRAL.has(p), stress, w: wi, word: srcWords ? (srcWords[wi] || '') : '', glide: false, dead: false });
   }));
 
+  // SANDHI: sibilant/africada SORDA final de paraula sonoritza si la paraula següent comença per
+  // vocal (falciots alats -> ...ɔdz əlats; peix alat -> peʒ). El motor ho fa amb la 's' simple
+  // (els->əlz) però no amb l'africada -ts ni amb 'ʃ' (el truc del '|' la hi bloca); ho cobrim aquí.
+  for (let i = 0; i + 1 < toks.length; i++) {
+    const t = toks[i], n = toks[i + 1];
+    if (t.w !== n.w && n.vowel && SANDHI_VOICE[t.ph]) {
+      t.ph = SANDHI_VOICE[t.ph];
+      t.key = (t.ph in map) ? map[t.ph] : '«' + t.ph + '»';
+    }
+  }
+
   // PROSÒDIA INTERLÈXICA: contacte de vocals entre paraules diferents (els diftongs interns
   // de paraula els deixem tal com els fa el motor).
   for (let i = 0; i + 1 < toks.length; i++) {
@@ -203,8 +215,8 @@ function processWords(words, srcWords, opts) {
 }
 
 // ---- modes ----
-async function convert(text, opts) {
-  await loadMap();
+// converteix UNA línia (sense salts); el contacte de vocals no creua mai un salt de línia
+async function convertLine(text, opts) {
   if (opts.mode === 'xsf-afi') return { afi: xsfToIpa(text).replace(/_/g, ''), unknown: [] };
 
   let words, srcWords = null;
@@ -225,6 +237,18 @@ async function convert(text, opts) {
   }
   const r = processWords(words, srcWords, opts);
   return { xsf: r.xsf, afi: r.ipa, unknown: r.unknown };
+}
+// processa el text sencer mantenint els SALTS DE LÍNIA (cada línia per separat)
+async function convert(text, opts) {
+  await loadMap();
+  const xs = [], af = [], unk = new Set();
+  for (const ln of text.split('\n')) {
+    if (!ln.trim()) { xs.push(''); af.push(''); continue; }
+    const r = await convertLine(ln, opts);
+    xs.push(r.xsf ?? ''); af.push(r.afi ?? '');
+    (r.unknown || []).forEach(u => unk.add(u));
+  }
+  return { xsf: xs.join('\n'), afi: af.join('\n'), unknown: [...unk] };
 }
 
 // ---- llista interactiva de substitucions (amb persistència) ----
@@ -279,7 +303,7 @@ function readOpts() {
   };
 }
 async function run() {
-  const text = $('input').value.trim(); if (!text) return;
+  const text = $('input').value; if (!text.trim()) return;   // value sense trim: conserva els salts interns
   const opts = readOpts();
   $('status').textContent = 'transcrivint…';
   try {
@@ -289,6 +313,7 @@ async function run() {
     $('out').textContent = xsfOut ? r.xsf : r.afi;
     $('debug').textContent = (r.unknown && r.unknown.length) ? ('sense mapeig: ' + r.unknown.join(' ')) : '';
     $('status').textContent = ''; window._out = $('out').textContent; window._xsf = xsfOut;
+    updatePreview();
   } catch (e) { $('status').textContent = 'error: ' + e.message; }
 }
 function syncMode() {
@@ -297,24 +322,56 @@ function syncMode() {
   $('input').placeholder = ph[m];
   $('catonly').style.display = (m === 'cat-xsf' || m === 'cat-afi') ? '' : 'none';
   $('ortobox').style.display = OUT_XSF(m) ? '' : 'none';   // les opcions ortogràfiques només per a sortida XSF
+  $('imgbox').style.display = OUT_XSF(m) ? '' : 'none';    // la imatge és en font XSF -> només per a sortida XSF
+}
+// ---- imatge: render únic, preview en viu, descàrrega i còpia ----
+function imgOpts() {
+  const num = (id, d) => { const v = parseFloat($(id).value); return isNaN(v) ? d : v; };
+  const al = $('imgalign') ? $('imgalign').value : 'left';
+  return { size: num('imgsize', 96), pad: num('imgpad', 40), lh: num('imglh', 1.3),
+           color: $('color').value, bg: $('bgcolor').value, transparent: $('transparent').checked, align: al };
+}
+async function renderTo(c) {                               // dibuixa la sortida XSF al canvas c; retorna true si hi ha res
+  const xsf = window._out;
+  if (!window._xsf || !xsf || !xsf.trim()) { c.width = c.height = 0; return false; }
+  const o = imgOpts();
+  await document.fonts.load(o.size + 'px XSF');
+  const lines = xsf.split('\n');
+  const meas = document.createElement('canvas').getContext('2d'); meas.font = o.size + 'px XSF';
+  const tw = Math.max(1, ...lines.map(l => meas.measureText(l).width));
+  const lh = o.size * o.lh;
+  c.width = Math.ceil(tw + o.pad * 2);
+  c.height = Math.ceil(lh * lines.length + o.pad * 2 + (o.lh - 1) * o.size * 0.3);
+  const ctx = c.getContext('2d');
+  if (!o.transparent) { ctx.fillStyle = o.bg; ctx.fillRect(0, 0, c.width, c.height); }
+  ctx.fillStyle = o.color; ctx.font = o.size + 'px XSF'; ctx.textBaseline = 'top';
+  ctx.textAlign = o.align;
+  const x = o.align === 'center' ? c.width / 2 : o.align === 'right' ? c.width - o.pad : o.pad;
+  lines.forEach((l, i) => ctx.fillText(l, x, o.pad + i * lh));
+  return true;
+}
+async function updatePreview() {
+  const prev = $('imgprev'); if (!prev) return;
+  const ok = await renderTo(prev);
+  $('imgmeta').textContent = ok ? (prev.width + ' × ' + prev.height + ' px') : '—';
+  $('dl').disabled = $('copyimg').disabled = !ok;
 }
 async function downloadImage() {
-  if (!window._xsf) return;                               // només quan la sortida és XSF
-  const xsf = window._out; if (!xsf) return;
-  const size = parseInt($('imgsize').value, 10) || 96;
-  await document.fonts.load(size + 'px XSF');
-  const pad = Math.round(size * 0.4), lines = xsf.split('\n');
-  const meas = document.createElement('canvas').getContext('2d'); meas.font = size + 'px XSF';
-  const w = Math.max(...lines.map(l => meas.measureText(l).width)) + pad * 2, lh = size * 1.3, h = lh * lines.length + pad * 2;
-  const c = document.createElement('canvas'); c.width = Math.ceil(w); c.height = Math.ceil(h);
-  const ctx = c.getContext('2d');
-  if (!$('transparent').checked) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); }
-  ctx.fillStyle = $('color').value; ctx.font = size + 'px XSF'; ctx.textBaseline = 'top';
-  lines.forEach((l, i) => ctx.fillText(l, pad, pad + i * lh));
+  const c = document.createElement('canvas'); if (!(await renderTo(c))) return;
   const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = 'xsf.png'; a.click();
+}
+async function copyImage() {
+  const c = document.createElement('canvas'); if (!(await renderTo(c))) return;
+  try {
+    const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    $('imgmeta').textContent = 'copiat al porta-retalls ✓';
+  } catch (e) { $('imgmeta').textContent = 'el navegador no permet copiar imatges'; }
 }
 ['mode', 'dialecte', 'tonicitat', 'espais', 'geminacio', 'sistema', 'uphangv', 'uphangc', 'fus_a', 'fus_i', 'fus_E', 'fus_e', 'fus_u', 'fus_O', 'fus_o', 'sx_e', 'sx_i', 'sx_u', 'sx_o', 'xs_e', 'xs_i', 'xs_u', 'xs_o', 'prnd_i', 'prnd_e', 'prnd_u', 'prnd_o'].forEach(id => $(id).addEventListener('change', () => { if (id === 'mode') syncMode(); run(); }));
 $('dl').addEventListener('click', downloadImage);
+$('copyimg').addEventListener('click', copyImage);
+['imgsize', 'imgpad', 'imglh', 'color', 'bgcolor', 'transparent', 'imgalign'].forEach(id => $(id).addEventListener('input', updatePreview));
 let _deb;
 const liveRun = () => { clearTimeout(_deb); _deb = setTimeout(run, 180); };  // transcripció en viu (debounce)
 $('input').addEventListener('input', liveRun);
