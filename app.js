@@ -168,11 +168,13 @@ function processWords(words, srcWords, opts) {
   // PENJADES: cada vocal s'aparella amb el seu ONSET (consonant abans -> glif CV) o, si no en té,
   // amb la CODA (consonant després -> glif VC, p.ex. "el"). Tot el que queda sense aparellar PENJA.
   // (Governa la caixa d'integrals i la geminació; la tònica ja es col·loca a part i és correcta.)
-  for (const t of live) t.comp = false;
+  let grpN = 0;
+  for (const t of live) { t.comp = false; t.grp = -1; }
   for (let i = 0; i + 1 < live.length; i++)              // passada 1: CV (onset + vocal)
-    if (!live[i].vowel && live[i + 1].vowel && adj(i, i + 1) && !live[i].comp && !live[i + 1].comp) { live[i].comp = true; live[i + 1].comp = true; }
+    if (!live[i].vowel && live[i + 1].vowel && adj(i, i + 1) && !live[i].comp && !live[i + 1].comp) { live[i].comp = live[i + 1].comp = true; live[i].grp = live[i + 1].grp = grpN++; }
   for (let i = 0; i < live.length; i++)                  // passada 2: VC (vocal sense onset + coda)
-    if (live[i].vowel && !live[i].comp && i + 1 < live.length && !live[i + 1].vowel && adj(i, i + 1) && !live[i + 1].comp) { live[i].comp = true; live[i + 1].comp = true; }
+    if (live[i].vowel && !live[i].comp && i + 1 < live.length && !live[i + 1].vowel && adj(i, i + 1) && !live[i + 1].comp) { live[i].comp = live[i + 1].comp = true; live[i].grp = live[i + 1].grp = grpN++; }
+  for (const t of live) if (t.grp === -1) t.grp = grpN++;   // penjades: grup propi (oportunitat de tall)
   // GEMINACIÓ: dues consonants iguals adjacents amb almenys UNA penjant -> es marca la PENJADA:
   // ';' si és la primera (i sempre que totes dues pengin), ':' si només penja la segona.
   if (opts.geminacio) {
@@ -205,13 +207,18 @@ function processWords(words, srcWords, opts) {
       plus.add(p);
     });
   }
-  let out = '';
+  // out = net (per a la imatge/dades); outD = amb U+200B als límits de composite -> oportunitats
+  // de tall que MAI parteixen una lligatura, per a la visualització en pantalla.
+  let out = '', outD = '';
   live.forEach((t, i) => {
-    if (i > 0 && opts.espais && live[i].w !== live[i - 1].w) out += ' ';
-    out += t.key;
-    if (plus.has(i)) out += (map['ˈ'] || '+');
+    if (i > 0) {
+      if (opts.espais && live[i].w !== live[i - 1].w) { out += ' '; outD += ' '; }
+      else if (live[i].grp !== live[i - 1].grp) outD += '​';
+    }
+    out += t.key; outD += t.key;
+    if (plus.has(i)) { const p = (map['ˈ'] || '+'); out += p; outD += p; }
   });
-  return { xsf: out, ipa: ipaShow, unknown: [...unknown] };
+  return { xsf: out, xsfD: outD, ipa: ipaShow, unknown: [...unknown] };
 }
 
 // ---- modes ----
@@ -236,19 +243,19 @@ async function convertLine(text, opts) {
     words = ipaW.map(w => w.split('_').filter(Boolean).map(tok => ({ ph: tok.replace(/^[ˈˌ]+/, ''), stress: STRESS_RE.test(tok) })));
   }
   const r = processWords(words, srcWords, opts);
-  return { xsf: r.xsf, afi: r.ipa, unknown: r.unknown };
+  return { xsf: r.xsf, xsfD: r.xsfD, afi: r.ipa, unknown: r.unknown };
 }
 // processa el text sencer mantenint els SALTS DE LÍNIA (cada línia per separat)
 async function convert(text, opts) {
   await loadMap();
-  const xs = [], af = [], unk = new Set();
+  const xs = [], xsd = [], af = [], unk = new Set();
   for (const ln of text.split('\n')) {
-    if (!ln.trim()) { xs.push(''); af.push(''); continue; }
+    if (!ln.trim()) { xs.push(''); xsd.push(''); af.push(''); continue; }
     const r = await convertLine(ln, opts);
-    xs.push(r.xsf ?? ''); af.push(r.afi ?? '');
+    xs.push(r.xsf ?? ''); xsd.push(r.xsfD ?? r.xsf ?? ''); af.push(r.afi ?? '');
     (r.unknown || []).forEach(u => unk.add(u));
   }
-  return { xsf: xs.join('\n'), afi: af.join('\n'), unknown: [...unk] };
+  return { xsf: xs.join('\n'), xsfD: xsd.join('\n'), afi: af.join('\n'), unknown: [...unk] };
 }
 
 // ---- llista interactiva de substitucions (amb persistència) ----
@@ -310,9 +317,9 @@ async function run() {
     const r = await convert(text, opts);
     const xsfOut = OUT_XSF(opts.mode);
     $('out').classList.toggle('afi', !xsfOut);
-    $('out').textContent = xsfOut ? r.xsf : r.afi;
+    $('out').textContent = xsfOut ? (r.xsfD || r.xsf) : r.afi;   // display amb oportunitats de tall (U+200B)
     $('debug').textContent = (r.unknown && r.unknown.length) ? ('sense mapeig: ' + r.unknown.join(' ')) : '';
-    $('status').textContent = ''; window._out = $('out').textContent; window._xsf = xsfOut;
+    $('status').textContent = ''; window._out = xsfOut ? r.xsf : r.afi; window._xsf = xsfOut;   // _out net per a la imatge
     updatePreview();
   } catch (e) { $('status').textContent = 'error: ' + e.message; }
 }
@@ -324,37 +331,50 @@ function syncMode() {
   $('ortobox').style.display = OUT_XSF(m) ? '' : 'none';   // les opcions ortogràfiques només per a sortida XSF
   $('imgbox').style.display = OUT_XSF(m) ? '' : 'none';    // la imatge és en font XSF -> només per a sortida XSF
 }
-// ---- imatge: render únic, preview en viu, descàrrega i còpia ----
+// ---- imatge: canvas de dimensions fixes, lletra auto-ajustada per OMPLIR (render únic) ----
 function imgOpts() {
   const num = (id, d) => { const v = parseFloat($(id).value); return isNaN(v) ? d : v; };
-  const al = $('imgalign') ? $('imgalign').value : 'left';
-  return { size: num('imgsize', 96), pad: num('imgpad', 40), lh: num('imglh', 1.3),
-           color: $('color').value, bg: $('bgcolor').value, transparent: $('transparent').checked, align: al };
+  return { W: Math.max(1, Math.round(num('imgw', 1920))), H: Math.max(1, Math.round(num('imgh', 1080))),
+           pad: Math.max(0, num('imgpad', 40)), lh: num('imglh', 1) || 1,
+           color: $('color').value, bg: $('bgcolor').value, transparent: $('transparent').checked, align: $('imgalign').value };
 }
-async function renderTo(c) {                               // dibuixa la sortida XSF al canvas c; retorna true si hi ha res
+function drawLine(ctx, line, o, innerW, y, isLast) {       // alineació (incl. justificat) d'una línia
+  if (o.align === 'justify' && !isLast && line.trim().includes(' ')) {
+    const parts = line.split(' '), ws = parts.map(p => ctx.measureText(p).width);
+    const gap = (innerW - ws.reduce((a, b) => a + b, 0)) / (parts.length - 1);
+    let x = o.pad; ctx.textAlign = 'left';
+    parts.forEach((p, i) => { ctx.fillText(p, x, y); x += ws[i] + gap; });
+  } else if (o.align === 'center') { ctx.textAlign = 'center'; ctx.fillText(line, o.pad + innerW / 2, y); }
+  else if (o.align === 'right') { ctx.textAlign = 'right'; ctx.fillText(line, o.pad + innerW, y); }
+  else { ctx.textAlign = 'left'; ctx.fillText(line, o.pad, y); }
+}
+async function renderTo(c) {                               // pinta al canvas c; retorna la mida de lletra (px) o 0
   const xsf = window._out;
-  if (!window._xsf || !xsf || !xsf.trim()) { c.width = c.height = 0; return false; }
+  if (!window._xsf || !xsf || !xsf.trim()) { c.width = c.height = 0; return 0; }
   const o = imgOpts();
-  await document.fonts.load(o.size + 'px XSF');
-  const lines = xsf.split('\n');
-  const meas = document.createElement('canvas').getContext('2d'); meas.font = o.size + 'px XSF';
-  const tw = Math.max(1, ...lines.map(l => meas.measureText(l).width));
-  const lh = o.size * o.lh;
-  c.width = Math.ceil(tw + o.pad * 2);
-  c.height = Math.ceil(lh * lines.length + o.pad * 2 + (o.lh - 1) * o.size * 0.3);
+  c.width = o.W; c.height = o.H;
   const ctx = c.getContext('2d');
-  if (!o.transparent) { ctx.fillStyle = o.bg; ctx.fillRect(0, 0, c.width, c.height); }
-  ctx.fillStyle = o.color; ctx.font = o.size + 'px XSF'; ctx.textBaseline = 'top';
-  ctx.textAlign = o.align;
-  const x = o.align === 'center' ? c.width / 2 : o.align === 'right' ? c.width - o.pad : o.pad;
-  lines.forEach((l, i) => ctx.fillText(l, x, o.pad + i * lh));
-  return true;
+  if (!o.transparent) { ctx.fillStyle = o.bg; ctx.fillRect(0, 0, o.W, o.H); }
+  const lines = xsf.split('\n');
+  const innerW = Math.max(1, o.W - 2 * o.pad), innerH = Math.max(1, o.H - 2 * o.pad);
+  const REF = 200;                                          // mesura a mida de referència i escala
+  await document.fonts.load(REF + 'px XSF');
+  ctx.font = REF + 'px XSF';
+  const maxW = Math.max(1, ...lines.map(l => ctx.measureText(l).width || 0));
+  // mida perquè el bloc OMPLI l'àrea interior, limitat per amplada o per alçada
+  const S = Math.max(1, Math.min(innerW * REF / maxW, innerH / (lines.length * o.lh)));
+  await document.fonts.load(S + 'px XSF');
+  ctx.font = S + 'px XSF'; ctx.fillStyle = o.color; ctx.textBaseline = 'top';
+  const lineH = S * o.lh;
+  let y = o.pad + (innerH - lines.length * lineH) / 2;      // bloc centrat verticalment
+  for (let i = 0; i < lines.length; i++) { drawLine(ctx, lines[i], o, innerW, y, i === lines.length - 1); y += lineH; }
+  return Math.round(S);
 }
 async function updatePreview() {
   const prev = $('imgprev'); if (!prev) return;
-  const ok = await renderTo(prev);
-  $('imgmeta').textContent = ok ? (prev.width + ' × ' + prev.height + ' px') : '—';
-  $('dl').disabled = $('copyimg').disabled = !ok;
+  const s = await renderTo(prev);
+  $('imgmeta').textContent = s ? (prev.width + ' × ' + prev.height + ' px · lletra ' + s + ' px') : '—';
+  $('dl').disabled = $('copyimg').disabled = !s;
 }
 async function downloadImage() {
   const c = document.createElement('canvas'); if (!(await renderTo(c))) return;
@@ -371,7 +391,7 @@ async function copyImage() {
 ['mode', 'dialecte', 'tonicitat', 'espais', 'geminacio', 'sistema', 'uphangv', 'uphangc', 'fus_a', 'fus_i', 'fus_E', 'fus_e', 'fus_u', 'fus_O', 'fus_o', 'sx_e', 'sx_i', 'sx_u', 'sx_o', 'xs_e', 'xs_i', 'xs_u', 'xs_o', 'prnd_i', 'prnd_e', 'prnd_u', 'prnd_o'].forEach(id => $(id).addEventListener('change', () => { if (id === 'mode') syncMode(); run(); }));
 $('dl').addEventListener('click', downloadImage);
 $('copyimg').addEventListener('click', copyImage);
-['imgsize', 'imgpad', 'imglh', 'color', 'bgcolor', 'transparent', 'imgalign'].forEach(id => $(id).addEventListener('input', updatePreview));
+['imgw', 'imgh', 'imgpad', 'imglh', 'color', 'bgcolor', 'transparent', 'imgalign'].forEach(id => $(id).addEventListener('input', updatePreview));
 let _deb;
 const liveRun = () => { clearTimeout(_deb); _deb = setTimeout(run, 180); };  // transcripció en viu (debounce)
 $('input').addEventListener('input', liveRun);
