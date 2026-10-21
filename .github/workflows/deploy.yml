@@ -88,6 +88,9 @@ jobs:
         if: steps.engine.outputs.cache-hit != 'true'
         run: mkdir -p engine && cp espeak-ng/espeak-ng.js espeak-ng/espeak-ng.wasm engine/
 
+      - name: Proves de distribucio del text a la imatge
+        run: node --test transcriptor/layout.test.mjs
+
       - name: Muntar el lloc
         run: |
           set -e
@@ -96,7 +99,7 @@ jobs:
           cp index.html mapping.txt XSF.woff2 XSF.ttf .nojekyll _site/
           cp engine/espeak-ng.js engine/espeak-ng.wasm _site/
           # les dues apps en subcarpetes
-          cp transcriptor/index.html transcriptor/app.js _site/transcriptor/
+          cp transcriptor/index.html transcriptor/app.js transcriptor/layout.mjs _site/transcriptor/
           cp editor/index.html editor/editor.js _site/editor/
           ls -laR _site
 

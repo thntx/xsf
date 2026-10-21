@@ -1,4 +1,5 @@
 import ESpeakNg from '../espeak-ng.js';
+import { wrapLine } from './layout.mjs';
 
 // ---- mapeig fonema IPA -> grafia XSF (mapping.txt) ----
 let MAP = null, RMAP = null, GRAPHS = null, IPAKEYS = null;
@@ -404,8 +405,11 @@ async function renderTo(c) {                               // pinta al canvas c;
     const atoms = (hasSpace ? raw.split(' ') : raw.split(ZW)).map(a => a.replace(ZW_RE, '')).filter(a => a.length);
     return { hasSpace, atoms };
   });
-  const spaceW = ctx.measureText(' ').width;
-  const wref = hard.map(hl => hl.atoms.map(a => ctx.measureText(a).width));   // amplada de cada àtom
+  const widths = new Map();
+  const measure = text => {
+    if (!widths.has(text)) widths.set(text, ctx.measureText(text).width);
+    return widths.get(text);
+  };
   // ALÇADA MÀXIMA TEÒRICA de línia = extent DECLARAT del font (fontBoundingBox), reforçat amb l'ink
   // real de les línies senceres (les astes connecten en context i són més altes que un àtom sol).
   const fm = ctx.measureText('Hpgà+ ');
@@ -423,17 +427,13 @@ async function renderTo(c) {                               // pinta al canvas c;
   // Així una línia amb cua/+ avall i l'accent de la següent no es toquen mai.
   const advAt = scale => scale * (extra + lhExtraRef) + 2;
   function layout(scale) {                                 // distribueix els àtoms en files a una escala
-    const sw = spaceW * scale; let ok = true; const rows = []; let maxW = 0;
-    hard.forEach((hl, hi) => {
-      if (!hl.atoms.length) { rows.push({ items: [], w: 0, last: true, hasSpace: hl.hasSpace }); return; }
-      let cur = [], curW = 0;
-      for (let k = 0; k < hl.atoms.length; k++) {
-        const w = wref[hi][k] * scale; if (w > innerW + 0.5) ok = false;
-        const add = cur.length ? (hl.hasSpace ? sw : 0) + w : w;
-        if (cur.length && curW + add > innerW) { rows.push({ items: cur, w: curW, last: false, hasSpace: hl.hasSpace }); maxW = Math.max(maxW, curW); cur = [{ a: hl.atoms[k], w }]; curW = w; }
-        else { cur.push({ a: hl.atoms[k], w }); curW += add; }
+    let ok = true; const rows = []; let maxW = 0;
+    hard.forEach(hl => {
+      for (const row of wrapLine(hl.atoms, hl.hasSpace ? ' ' : '', innerW, text => measure(text) * scale)) {
+        row.hasSpace = hl.hasSpace;
+        if (row.items.some(it => it.w > innerW + 0.5)) ok = false;
+        rows.push(row); maxW = Math.max(maxW, row.w);
       }
-      rows.push({ items: cur, w: curW, last: true, hasSpace: hl.hasSpace }); maxW = Math.max(maxW, curW);
     });
     return { rows, maxW, height: scale * extra + (rows.length - 1) * advAt(scale), ok };
   }
