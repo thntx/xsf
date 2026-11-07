@@ -90,17 +90,17 @@
     {
       "id": "didona",
       "family": "XSF Didona",
-      "version": "2.002",
+      "version": "2.003",
       "formats": {
         "ttf": {
           "file": "XSF-Didona-Regular.ttf",
-          "bytes": 34285936,
-          "sha256": "90ac0b3581a8d0a80b98a8e5d8fce17131169407b4fc697ae7c55bcbf70cc6e5"
+          "bytes": 34578364,
+          "sha256": "b5696795a0494414ac050bd996a1c947ad10d9a92499667ffb4f1e7bb9536773"
         },
         "woff2": {
           "file": "XSF-Didona-Regular.woff2",
-          "bytes": 759004,
-          "sha256": "919090636e250f8b9a4473ac200062628bfa3c456112789bc5619eba5334ae42"
+          "bytes": 760580,
+          "sha256": "5200b7be16edf50649d402f15f56129ba0cb4e48c2a6bf0391d090fb7b5b7ced"
         }
       }
     },

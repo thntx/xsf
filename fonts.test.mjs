@@ -32,7 +32,7 @@ test('every family has matching CSS, complete assets and a manifest entry', () =
 test('both apps use the shared picker and the selected CSS font', () => {
   for (const page of ['editor', 'transcriptor']) {
     const html = readFileSync(new URL(`./${page}/index.html`, import.meta.url), 'utf8');
-    assert.ok(html.includes('../fonts.css?v=9'));
+    assert.ok(html.includes('../fonts.css?v=10'));
     assert.ok(html.includes('id="font-family"'));
     assert.ok(html.includes('id="font-download"'));
     assert.ok(html.includes('font-family:var(--xsf-font)'));
@@ -73,7 +73,7 @@ test('default, restored selection, download and cross-tab changes remain in sync
     assert.equal(getSelectedFont().id, 'didona');
     assert.equal(storage.get(FONT_STORAGE_KEY), 'didona');
     assert.equal(download.download, 'XSF-Didona-Regular.ttf');
-    assert.ok(download.href.endsWith('/fonts/XSF-Didona-Regular.ttf?v=2.002'));
+    assert.ok(download.href.endsWith('/fonts/XSF-Didona-Regular.ttf?v=2.003'));
     assert.equal(fontSpec(200), '200px "XSF Didona"');
     events.storage({ key: FONT_STORAGE_KEY, newValue: 'cursiva' });
     assert.equal(picker.value, 'cursiva');
