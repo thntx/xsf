@@ -1,5 +1,6 @@
 import ESpeakNg from '../espeak-ng.js';
 import { wrapLine } from './layout.mjs';
+import { initFontPicker, getSelectedFont, fontSpec, loadFont } from '../fonts.mjs?v=8';
 
 // ---- mapeig fonema IPA -> grafia XSF (mapping.txt) ----
 let MAP = null, RMAP = null, GRAPHS = null, IPAKEYS = null;
@@ -390,14 +391,16 @@ async function renderTo(c) {                               // pinta al canvas c;
   const src = window._outD || window._out;
   if (!window._xsf || !src || !src.trim()) { c.width = c.height = 0; return 0; }
   const o = imgOpts();
+  const font = getSelectedFont();
   c.width = o.W; c.height = o.H;
   const ctx = c.getContext('2d');
   if (!o.transparent) { ctx.fillStyle = o.bg; ctx.fillRect(0, 0, o.W, o.H); }
   const padX = o.W * o.padPct / 100, padY = o.H * o.padPct / 100;
   const innerW = Math.max(1, o.W - 2 * padX), innerH = Math.max(1, o.H - 2 * padY);
   const REF = 200;
-  await document.fonts.load(REF + 'px XSF');
-  ctx.font = REF + 'px XSF';
+  await loadFont(font, REF);
+  ctx.font = fontSpec(REF, font);
+  ctx.fontKerning = 'normal';
   const ZW_RE = /\u200B/g;
   // línies dures -> àtoms: PARAULES si hi ha espais; si no, COMPOSITES (per no tallar lligatures)
   const hard = src.split('\n').map(raw => {
@@ -443,16 +446,22 @@ async function renderTo(c) {                               // pinta al canvas c;
     if (L.ok && L.height <= innerH && L.maxW <= innerW) lo = mid; else hi = mid;
   }
   const scale = lo, S = REF * scale, L = layout(scale);
-  await document.fonts.load(S + 'px XSF');
-  ctx.font = S + 'px XSF'; ctx.fillStyle = o.color; ctx.textBaseline = 'alphabetic';
+  await loadFont(font, S);
+  ctx.font = fontSpec(S, font); ctx.fillStyle = o.color; ctx.textBaseline = 'alphabetic';
   const advance = advAt(scale);
   let by = padY + (innerH - L.height) / 2 + maxAsc * scale; // baseline de la primera fila (deixa espai per a l'accent)
   for (const row of L.rows) { drawRow(ctx, row, padX, innerW, by, o.align); by += advance; }
   return Math.round(S);
 }
+let previewRequest = 0;
 async function updatePreview() {
   const prev = $('imgprev'); if (!prev) return;
-  const s = await renderTo(prev);
+  const request = ++previewRequest;
+  const canvas = document.createElement('canvas');
+  const s = await renderTo(canvas);
+  if (request !== previewRequest) return;
+  prev.width = canvas.width; prev.height = canvas.height;
+  if (s) prev.getContext('2d').drawImage(canvas, 0, 0);
   $('imgmeta').textContent = s ? (prev.width + ' × ' + prev.height + ' px · lletra ' + s + ' px') : '—';
   $('dl').disabled = $('copyimg').disabled = !s;
 }
@@ -480,4 +489,5 @@ function initLists() {
   getSubs = buildList($('subsList'), 'xsf_subs2', SUBS_DEF, [{ ph: 'paraula', wide: true }, { ph: 'XSF', wide: true }], liveRun);
 }
 initLists(); syncMode();
+initFontPicker(updatePreview);
 loadMap().then(() => { $('status').textContent = ''; run(); });

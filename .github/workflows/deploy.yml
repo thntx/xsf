@@ -89,14 +89,16 @@ jobs:
         run: mkdir -p engine && cp espeak-ng/espeak-ng.js espeak-ng/espeak-ng.wasm engine/
 
       - name: Proves de distribucio del text a la imatge
-        run: node --test transcriptor/layout.test.mjs
+        run: node --test transcriptor/layout.test.mjs fonts.test.mjs
 
       - name: Muntar el lloc
         run: |
           set -e
-          mkdir -p _site/transcriptor _site/editor
+          mkdir -p _site/transcriptor _site/editor _site/fonts
           # compartits a l'arrel (la font, el mapeig, el motor i el redirector)
           cp index.html mapping.txt XSF.woff2 XSF.ttf .nojekyll _site/
+          cp fonts.css fonts.mjs _site/
+          cp fonts/*.ttf fonts/*.woff2 fonts/manifest.json _site/fonts/
           cp engine/espeak-ng.js engine/espeak-ng.wasm _site/
           # les dues apps en subcarpetes
           cp transcriptor/index.html transcriptor/app.js transcriptor/layout.mjs _site/transcriptor/

@@ -4,16 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Transcriptor</title>
+<link rel="stylesheet" href="../fonts.css?v=8">
 <style>
-  @font-face { font-family: 'XSF'; src: url('../XSF.woff2?v=7') format('woff2'); font-display: swap; }
   :root { --bg:#14151a; --fg:#e8e8ec; --mut:#8a8a93; --acc:#6ad; --pan:#1d1f26; --bd:#333; }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--fg); font-family:system-ui,sans-serif; line-height:1.5; }
-  .topnav { display:flex; gap:4px; background:var(--pan); border-bottom:1px solid var(--bd); padding:8px 16px; }
+  .topnav { display:flex; flex-wrap:wrap; align-items:center; gap:8px 4px; background:var(--pan); border-bottom:1px solid var(--bd); padding:8px 16px; }
   .topnav a { color:var(--mut); text-decoration:none; font-weight:600; padding:6px 14px; border-radius:8px; }
   .topnav a:hover { color:var(--fg); }
   .topnav a.active { color:var(--bg); background:var(--acc); }
-  .topnav a.fontdl { color:var(--fg); border:1px solid var(--bd); margin-left:auto; }
+  .topnav a.fontdl { color:var(--fg); border:1px solid var(--bd); }
   .topnav a.fontdl:hover { border-color:var(--acc); }
   .wrap { max-width: 980px; margin: 0 auto; padding: 28px 16px 64px; }
   h1 { font-size: 2.6rem; font-weight: 800; letter-spacing:-.02em; margin: 0 0 14px; }
@@ -37,7 +37,7 @@
   #input { height:100%; }
   #outwrap { background:var(--pan); border:1px solid var(--bd); border-radius:12px; padding:14px; overflow:auto; }
   /* white-space:pre-wrap conserva salts; SENSE word-break per no partir mai lligatures (les línies llargues fan scroll) */
-  #out { font-family:'XSF'; font-size:3rem; line-height:1.35; white-space:pre-wrap; overflow-wrap:normal; word-break:normal; }
+  #out { font-family:var(--xsf-font); font-size:3rem; line-height:1.5; white-space:pre-wrap; overflow-wrap:normal; word-break:normal; font-kerning:normal; font-feature-settings:"kern" 1,"liga" 1,"calt" 1; }
   #out.afi { font-family:ui-monospace,monospace; font-size:1.5rem; line-height:1.5; overflow-wrap:anywhere; }
   @media (max-width:680px) { .io { grid-template-columns:1fr; } }
   #debug { white-space:pre-wrap; color:#e88; font-family:ui-monospace,monospace; font-size:.8rem; margin-top:10px; }
@@ -70,7 +70,8 @@
 <nav class="topnav">
   <a href="../transcriptor/" class="active">Transcriptor</a>
   <a href="../editor/">Editor</a>
-  <a href="../XSF.ttf?v=7" download="XSF.ttf" class="fontdl" title="Descarrega la font">Font</a>
+  <label class="font-choice">Font <select id="font-family" aria-label="Font XSF"><option value="editorial">Editorial</option></select></label>
+  <a id="font-download" href="../fonts/XSF-Editorial-Regular.ttf?v=2.000" download="XSF-Editorial-Regular.ttf" class="fontdl" title="Descarrega XSF Editorial">Descarrega</a>
 </nav>
 <div class="wrap">
   <h1>Transcriptor</h1>
@@ -205,6 +206,6 @@
     </div>
   </details>
 </div>
-<script type="module" src="app.js?v=6"></script>
+<script type="module" src="app.js?v=8"></script>
 </body>
 </html>

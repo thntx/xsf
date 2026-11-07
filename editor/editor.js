@@ -1,5 +1,6 @@
 // ---- Editor XSF: escriu XSF directament. Els botons de mode posen obridors invisibles;
 // els botons de creix/minva recasen només les penjades. ----
+import { initFontPicker } from '../fonts.mjs?v=8';
 
 // ---- mapeig (mateix que el transcriptor, sense motor espeak) ----
 let MAP = null, RMAP = null, GRAPHS = null;
@@ -197,4 +198,5 @@ $('undo').addEventListener('click', () => { flushTyping(); undo(); src.focus(); 
 $('redo').addEventListener('click', () => { flushTyping(); redo(); src.focus(); });
 
 updatePh();
+initFontPicker();
 loadMap();

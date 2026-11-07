@@ -1,0 +1,118 @@
+{
+  "source": "XSF release 2026-11-07; Didona 2.001",
+  "glyphs_per_font": 8337,
+  "fonts": [
+    {
+      "id": "editorial",
+      "family": "XSF Editorial",
+      "formats": {
+        "ttf": {
+          "file": "XSF-Editorial-Regular.ttf",
+          "bytes": 35996640,
+          "sha256": "45de227a928a1c74d7528d71705bfbfd3b44daeca1945cc805347286b6af1e52"
+        },
+        "woff2": {
+          "file": "XSF-Editorial-Regular.woff2",
+          "bytes": 786204,
+          "sha256": "b6613c91e315fd16105b2bf6307e0692dcb59ca064a0f2758ff71c837622b88f"
+        }
+      }
+    },
+    {
+      "id": "cursiva",
+      "family": "XSF Cursiva",
+      "formats": {
+        "ttf": {
+          "file": "XSF-Cursiva-Regular.ttf",
+          "bytes": 33394232,
+          "sha256": "f0a297e8f93db9ff268484c0fd836946b992c951ad41d9dbf0c24ff98eef9121"
+        },
+        "woff2": {
+          "file": "XSF-Cursiva-Regular.woff2",
+          "bytes": 756400,
+          "sha256": "1e6ba769cdfc040232535711a3783e176d405a3d3cd23865b81121182f3afc64"
+        }
+      }
+    },
+    {
+      "id": "clara",
+      "family": "XSF Clara",
+      "formats": {
+        "ttf": {
+          "file": "XSF-Clara-Regular.ttf",
+          "bytes": 34842940,
+          "sha256": "7a3c9773967e54dbe49ac7ee037e9e8c34bb13a5aafb31d3882880ec076baf78"
+        },
+        "woff2": {
+          "file": "XSF-Clara-Regular.woff2",
+          "bytes": 737244,
+          "sha256": "e2ad23950992517a66c192f5a77c67f3e3d18e82e84e3d6e34aadfdc81b7cc3a"
+        }
+      }
+    },
+    {
+      "id": "suau",
+      "family": "XSF Suau",
+      "formats": {
+        "ttf": {
+          "file": "XSF-Suau-Regular.ttf",
+          "bytes": 28929728,
+          "sha256": "b7af72d54b65a31fa13560a0d23888601db14ba050132a58593169287dadf04e"
+        },
+        "woff2": {
+          "file": "XSF-Suau-Regular.woff2",
+          "bytes": 715936,
+          "sha256": "16b9d388da28b079319b6a257bc3cef84dcd9b8c45103aa2d9d19aa69076e4fa"
+        }
+      }
+    },
+    {
+      "id": "classica",
+      "family": "XSF Classica",
+      "formats": {
+        "ttf": {
+          "file": "XSF-Classica-Regular.ttf",
+          "bytes": 35296132,
+          "sha256": "4ff0a135af25af5aeffc886fbece534a3e86dd0452469730e20443d352df8d9d"
+        },
+        "woff2": {
+          "file": "XSF-Classica-Regular.woff2",
+          "bytes": 782556,
+          "sha256": "eaa57c4b310b908e8450e0483f48333dde8e8da6b03c083fdc78a7ad24cf0fd1"
+        }
+      }
+    },
+    {
+      "id": "didona",
+      "family": "XSF Didona",
+      "formats": {
+        "ttf": {
+          "file": "XSF-Didona-Regular.ttf",
+          "bytes": 36556196,
+          "sha256": "76c77257ce563fc207824669569760dab7b2780b80ec60afd111b9865b75742b"
+        },
+        "woff2": {
+          "file": "XSF-Didona-Regular.woff2",
+          "bytes": 782508,
+          "sha256": "88de7b4c480f3326251d8ed54daffda579562b7080732d0884672522ff6f9f5f"
+        }
+      }
+    },
+    {
+      "id": "pixel",
+      "family": "XSF",
+      "formats": {
+        "ttf": {
+          "file": "XSF-Pixel.ttf",
+          "bytes": 14413504,
+          "sha256": "34dacddbb3a8e3492a968d354629c10f0e65449b4bd9d7f6393be240153afe5d"
+        },
+        "woff2": {
+          "file": "XSF-Pixel.woff2",
+          "bytes": 314752,
+          "sha256": "4639fb510c809b3e7a496f87f0c766e8a159926a81d4354de5ccf22241714703"
+        }
+      }
+    }
+  ]
+}
