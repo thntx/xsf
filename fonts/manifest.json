@@ -1,106 +1,113 @@
 {
-  "source": "XSF release 2026-11-07; Didona 2.001",
+  "source": "XSF release 2026-11-07; uniform styling of all elements",
   "glyphs_per_font": 8337,
   "fonts": [
     {
       "id": "editorial",
       "family": "XSF Editorial",
+      "version": "2.002",
       "formats": {
         "ttf": {
           "file": "XSF-Editorial-Regular.ttf",
-          "bytes": 35996640,
-          "sha256": "45de227a928a1c74d7528d71705bfbfd3b44daeca1945cc805347286b6af1e52"
+          "bytes": 37611056,
+          "sha256": "3d249e767850bb3c02b209a8c725683b8f28b9cb3d8ba6309ca406081250f8da"
         },
         "woff2": {
           "file": "XSF-Editorial-Regular.woff2",
-          "bytes": 786204,
-          "sha256": "b6613c91e315fd16105b2bf6307e0692dcb59ca064a0f2758ff71c837622b88f"
+          "bytes": 789440,
+          "sha256": "4207ff10811bf207c79b84bd45655a5ca94785ea089ee988c5a0660a3cb915af"
         }
       }
     },
     {
       "id": "cursiva",
       "family": "XSF Cursiva",
+      "version": "2.002",
       "formats": {
         "ttf": {
           "file": "XSF-Cursiva-Regular.ttf",
-          "bytes": 33394232,
-          "sha256": "f0a297e8f93db9ff268484c0fd836946b992c951ad41d9dbf0c24ff98eef9121"
+          "bytes": 33560432,
+          "sha256": "6a79224c453f0074f99335a3017c1b5a13ec28749efdc93a91aa807125996bef"
         },
         "woff2": {
           "file": "XSF-Cursiva-Regular.woff2",
-          "bytes": 756400,
-          "sha256": "1e6ba769cdfc040232535711a3783e176d405a3d3cd23865b81121182f3afc64"
+          "bytes": 852964,
+          "sha256": "a223269fd026111338e2567a98517c9d1ee9cce07e9b387ce3be9e5038c0e071"
         }
       }
     },
     {
       "id": "clara",
       "family": "XSF Clara",
+      "version": "2.002",
       "formats": {
         "ttf": {
           "file": "XSF-Clara-Regular.ttf",
-          "bytes": 34842940,
-          "sha256": "7a3c9773967e54dbe49ac7ee037e9e8c34bb13a5aafb31d3882880ec076baf78"
+          "bytes": 34871316,
+          "sha256": "4991e19e8cdd8720132aa0038c97a543c16ba57d6d51254fc024756f0a5fc531"
         },
         "woff2": {
           "file": "XSF-Clara-Regular.woff2",
-          "bytes": 737244,
-          "sha256": "e2ad23950992517a66c192f5a77c67f3e3d18e82e84e3d6e34aadfdc81b7cc3a"
+          "bytes": 730608,
+          "sha256": "873d560c3abd91291cb5460bd426b27b0e529fb9f1cfa0ee7b240723d134d8cc"
         }
       }
     },
     {
       "id": "suau",
       "family": "XSF Suau",
+      "version": "2.002",
       "formats": {
         "ttf": {
           "file": "XSF-Suau-Regular.ttf",
-          "bytes": 28929728,
-          "sha256": "b7af72d54b65a31fa13560a0d23888601db14ba050132a58593169287dadf04e"
+          "bytes": 28936016,
+          "sha256": "eb20e5c492cc157f33b498b041ce71c19f92657f51649b92262be580b1843d7a"
         },
         "woff2": {
           "file": "XSF-Suau-Regular.woff2",
-          "bytes": 715936,
-          "sha256": "16b9d388da28b079319b6a257bc3cef84dcd9b8c45103aa2d9d19aa69076e4fa"
+          "bytes": 724304,
+          "sha256": "2213a3867a3a37f3df71003d6891479b4464d9aaaf897f86bc6c1c57429fab7f"
         }
       }
     },
     {
       "id": "classica",
       "family": "XSF Classica",
+      "version": "2.002",
       "formats": {
         "ttf": {
           "file": "XSF-Classica-Regular.ttf",
-          "bytes": 35296132,
-          "sha256": "4ff0a135af25af5aeffc886fbece534a3e86dd0452469730e20443d352df8d9d"
+          "bytes": 33905736,
+          "sha256": "2d49b6ee8ebfbd9d3c29f105393aa10f75d42fb8e48c743f5df0020cc6c3dd32"
         },
         "woff2": {
           "file": "XSF-Classica-Regular.woff2",
-          "bytes": 782556,
-          "sha256": "eaa57c4b310b908e8450e0483f48333dde8e8da6b03c083fdc78a7ad24cf0fd1"
+          "bytes": 780272,
+          "sha256": "bb54e1d8fe3f4e7a6d51e14d7d5e6f9e576c8651c8bf86db1a2dc4c03f9c0fb9"
         }
       }
     },
     {
       "id": "didona",
       "family": "XSF Didona",
+      "version": "2.002",
       "formats": {
         "ttf": {
           "file": "XSF-Didona-Regular.ttf",
-          "bytes": 36556196,
-          "sha256": "76c77257ce563fc207824669569760dab7b2780b80ec60afd111b9865b75742b"
+          "bytes": 34285936,
+          "sha256": "90ac0b3581a8d0a80b98a8e5d8fce17131169407b4fc697ae7c55bcbf70cc6e5"
         },
         "woff2": {
           "file": "XSF-Didona-Regular.woff2",
-          "bytes": 782508,
-          "sha256": "88de7b4c480f3326251d8ed54daffda579562b7080732d0884672522ff6f9f5f"
+          "bytes": 759004,
+          "sha256": "919090636e250f8b9a4473ac200062628bfa3c456112789bc5619eba5334ae42"
         }
       }
     },
     {
       "id": "pixel",
       "family": "XSF",
+      "version": "20261107",
       "formats": {
         "ttf": {
           "file": "XSF-Pixel.ttf",

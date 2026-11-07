@@ -14,7 +14,8 @@ Eina web que transcriu text en català a l'alfabet fonètic **XSF**. Tot s'execu
 Editorial (per defecte), Cursiva, Clara, Suau, Clàssica, Didona i Pixel, en aquest ordre.
 La tria es conserva al navegador entre les dues vistes. La descàrrega TTF segueix la font
 seleccionada. Els WOFF2 i TTF complets són a `fonts/`, amb inventari SHA-256 a
-`fonts/manifest.json`; Didona és la versió 2.001 amb terminals corregits. Les regles
+`fonts/manifest.json`; totes les famílies contínues són versió 2.002, amb els acabats
+de l'estil també als accents, marques i signes, sense exclusions per categoria. Les regles
 KIB/KTB/BKK, mínimes, numerals i accents són les mateixes a totes les famílies.
 
 ## Nasal dental dins el motor
