@@ -1,9 +1,9 @@
-@font-face { font-family:'XSF Editorial'; src:url('fonts/XSF-Editorial-Regular.woff2?v=2.002') format('woff2'); font-display:swap; }
+@font-face { font-family:'XSF Editorial'; src:url('fonts/XSF-Editorial-Regular.woff2?v=2.004') format('woff2'); font-display:swap; }
 @font-face { font-family:'XSF Cursiva'; src:url('fonts/XSF-Cursiva-Regular.woff2?v=2.002') format('woff2'); font-display:swap; }
 @font-face { font-family:'XSF Clara'; src:url('fonts/XSF-Clara-Regular.woff2?v=2.002') format('woff2'); font-display:swap; }
 @font-face { font-family:'XSF Suau'; src:url('fonts/XSF-Suau-Regular.woff2?v=2.002') format('woff2'); font-display:swap; }
-@font-face { font-family:'XSF Classica'; src:url('fonts/XSF-Classica-Regular.woff2?v=2.002') format('woff2'); font-display:swap; }
-@font-face { font-family:'XSF Didona'; src:url('fonts/XSF-Didona-Regular.woff2?v=2.003') format('woff2'); font-display:swap; }
+@font-face { font-family:'XSF Classica'; src:url('fonts/XSF-Classica-Regular.woff2?v=2.004') format('woff2'); font-display:swap; }
+@font-face { font-family:'XSF Didona'; src:url('fonts/XSF-Didona-Regular.woff2?v=2.004') format('woff2'); font-display:swap; }
 @font-face { font-family:'XSF Pixel'; src:url('fonts/XSF-Pixel.woff2?v=20261107') format('woff2'); font-display:swap; }
 :root { --xsf-font:'XSF Editorial'; }
 .font-choice { display:flex; align-items:center; gap:8px; margin-left:auto; color:var(--mut); font-size:.85rem; }

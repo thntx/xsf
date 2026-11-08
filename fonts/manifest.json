@@ -5,17 +5,17 @@
     {
       "id": "editorial",
       "family": "XSF Editorial",
-      "version": "2.002",
+      "version": "2.004",
       "formats": {
         "ttf": {
           "file": "XSF-Editorial-Regular.ttf",
-          "bytes": 37611056,
-          "sha256": "3d249e767850bb3c02b209a8c725683b8f28b9cb3d8ba6309ca406081250f8da"
+          "bytes": 37852284,
+          "sha256": "103d5e95062dceeb2359ceb85842d6744e795aa20171acb97ecf971d38903749"
         },
         "woff2": {
           "file": "XSF-Editorial-Regular.woff2",
-          "bytes": 789440,
-          "sha256": "4207ff10811bf207c79b84bd45655a5ca94785ea089ee988c5a0660a3cb915af"
+          "bytes": 796860,
+          "sha256": "5f58e2f3d5525f064b385aa59e4abea6f20625ed62bfef47f278020db1f9fbe9"
         }
       }
     },
@@ -73,34 +73,34 @@
     {
       "id": "classica",
       "family": "XSF Classica",
-      "version": "2.002",
+      "version": "2.004",
       "formats": {
         "ttf": {
           "file": "XSF-Classica-Regular.ttf",
-          "bytes": 33905736,
-          "sha256": "2d49b6ee8ebfbd9d3c29f105393aa10f75d42fb8e48c743f5df0020cc6c3dd32"
+          "bytes": 33672436,
+          "sha256": "1dc8c17d6971c4fcc11f0ffbd3fbbb7cbb3272bcfa2c57072e3e1dc09ebe8ca9"
         },
         "woff2": {
           "file": "XSF-Classica-Regular.woff2",
-          "bytes": 780272,
-          "sha256": "bb54e1d8fe3f4e7a6d51e14d7d5e6f9e576c8651c8bf86db1a2dc4c03f9c0fb9"
+          "bytes": 782752,
+          "sha256": "22a5c4c88b3fda4f2409e48717cd787cde1af4dbfa7e0f1ecd0fa6c5a8a7c0f2"
         }
       }
     },
     {
       "id": "didona",
       "family": "XSF Didona",
-      "version": "2.003",
+      "version": "2.004",
       "formats": {
         "ttf": {
           "file": "XSF-Didona-Regular.ttf",
-          "bytes": 34578364,
-          "sha256": "b5696795a0494414ac050bd996a1c947ad10d9a92499667ffb4f1e7bb9536773"
+          "bytes": 34287716,
+          "sha256": "f962335ab20c7f4e2baa81c860fffd65a35136b8b66c87af0e96169e9a6c02f1"
         },
         "woff2": {
           "file": "XSF-Didona-Regular.woff2",
-          "bytes": 760580,
-          "sha256": "5200b7be16edf50649d402f15f56129ba0cb4e48c2a6bf0391d090fb7b5b7ced"
+          "bytes": 758312,
+          "sha256": "88be69ee316401d11cd3fafb0be55d24300c60511fbb02c0016544006d206ae6"
         }
       }
     },

@@ -1,6 +1,6 @@
 // ---- Editor XSF: escriu XSF directament. Els botons de mode posen obridors invisibles;
 // els botons de creix/minva recasen només les penjades. ----
-import { initFontPicker } from '../fonts.mjs?v=10';
+import { initFontPicker } from '../fonts.mjs?v=11';
 
 // ---- mapeig (mateix que el transcriptor, sense motor espeak) ----
 let MAP = null, RMAP = null, GRAPHS = null;
