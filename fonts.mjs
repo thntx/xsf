@@ -1,11 +1,11 @@
 export const FONTS = Object.freeze([
-  { id: 'editorial', label: 'Editorial', family: 'XSF Editorial', file: 'XSF-Editorial-Regular', version: '2.004' },
-  { id: 'cursiva', label: 'Cursiva', family: 'XSF Cursiva', file: 'XSF-Cursiva-Regular', version: '2.002' },
-  { id: 'clara', label: 'Clara', family: 'XSF Clara', file: 'XSF-Clara-Regular', version: '2.002' },
-  { id: 'suau', label: 'Suau', family: 'XSF Suau', file: 'XSF-Suau-Regular', version: '2.002' },
-  { id: 'classica', label: 'Cl\u00e0ssica', family: 'XSF Classica', file: 'XSF-Classica-Regular', version: '2.004' },
-  { id: 'didona', label: 'Didona', family: 'XSF Didona', file: 'XSF-Didona-Regular', version: '2.004' },
-  { id: 'pixel', label: 'Pixel', family: 'XSF Pixel', file: 'XSF-Pixel', version: '20261107' },
+  { id: 'editorial', label: 'Editorial', family: 'XSF Editorial', file: 'XSF-Editorial-Regular', version: '2.005' },
+  { id: 'cursiva', label: 'Cursiva', family: 'XSF Cursiva', file: 'XSF-Cursiva-Regular', version: '2.005' },
+  { id: 'clara', label: 'Clara', family: 'XSF Clara', file: 'XSF-Clara-Regular', version: '2.005' },
+  { id: 'suau', label: 'Suau', family: 'XSF Suau', file: 'XSF-Suau-Regular', version: '2.005' },
+  { id: 'classica', label: 'Cl\u00e0ssica', family: 'XSF Classica', file: 'XSF-Classica-Regular', version: '2.005' },
+  { id: 'didona', label: 'Didona', family: 'XSF Didona', file: 'XSF-Didona-Regular', version: '2.005' },
+  { id: 'pixel', label: 'Pixel', family: 'XSF Pixel', file: 'XSF-Pixel', version: '20261109' },
 ].map(Object.freeze));
 
 export const DEFAULT_FONT = FONTS[0];

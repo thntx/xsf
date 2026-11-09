@@ -1,6 +1,6 @@
 // ---- Editor XSF: escriu XSF directament. Els botons de mode posen obridors invisibles;
 // els botons de creix/minva recasen només les penjades. ----
-import { initFontPicker } from '../fonts.mjs?v=11';
+import { initFontPicker } from '../fonts.mjs?v=12';
 
 // ---- mapeig (mateix que el transcriptor, sense motor espeak) ----
 let MAP = null, RMAP = null, GRAPHS = null;
@@ -12,7 +12,7 @@ const toBase = g => [...g].map(deIntegral).join('');
 const toIntegral = g => [...g].map(integralOf).join('');
 // vocal segons la LLETRA base (treu accents amb NFD): a e i o u x(=ə). La resta de grafemes són consonants.
 const isVowel = g => 'aeioux'.includes((g.normalize('NFD')[0] || '').toLowerCase());
-const MODE_OPEN = { kib: '', ktb: ']', bkk: '[', minima: '}' };
+const MODE_OPEN = { kib: '', ktb: ']', bkk: '[', minima: '{' };
 const MODE_CHARS = new Set(['[', ']', '{', '}']);
 const RESET = '  ';
 

@@ -14,9 +14,11 @@ Eina web que transcriu text en català a l'alfabet fonètic **XSF**. Tot s'execu
 Editorial (per defecte), Cursiva, Clara, Suau, Clàssica, Didona i Pixel, en aquest ordre.
 La tria es conserva al navegador entre les dues vistes. La descàrrega TTF segueix la font
 seleccionada. Els WOFF2 i TTF complets són a `fonts/`, amb inventari SHA-256 a
-`fonts/manifest.json`; totes les famílies contínues són versió 2.002, amb els acabats
+`fonts/manifest.json`; totes les famílies contínues són versió 2.005, amb els acabats
 de l'estil també als accents, marques i signes, sense exclusions per categoria. Les regles
 KIB/KTB/BKK, mínimes, numerals i accents són les mateixes a totes les famílies.
+`{` obre el mode de mínimes sense composició consonant-vocal, i `}` obre els numerals
+en base 32. L'espai doble torna al mode per defecte.
 
 ## Nasal dental dins el motor
 La `n` dental (davant `t`/`d`, p. ex. *vint*, *tendre*, i els números) s'afegeix **al codi del
