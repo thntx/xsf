@@ -1,6 +1,6 @@
 import ESpeakNg from '../espeak-ng.js';
 import { wrapLine } from './layout.mjs';
-import { initFontPicker, getSelectedFont, fontSpec, loadFont } from '../fonts.mjs?v=12';
+import { initFontPicker, getSelectedFont, fontSpec, loadFont } from '../fonts.mjs?v=13';
 
 // ---- mapeig fonema IPA -> grafia XSF (mapping.txt) ----
 let MAP = null, RMAP = null, GRAPHS = null, IPAKEYS = null;
